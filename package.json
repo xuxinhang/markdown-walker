@@ -1,0 +1,17 @@
+{
+  "name": "cattle-markdown-walker",
+  "version": "0.1.0",
+  "description": "",
+  "main": "debuger.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "run": "node -r ts-node/register debuger.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^11.13.7",
+    "ts-node": "^8.1.0",
+    "typescript": "^3.4.5"
+  }
+}
