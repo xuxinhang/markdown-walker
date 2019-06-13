@@ -8,6 +8,8 @@ import BaseBuilder, { BUILD_MSG_TYPE } from './_base';
 
 import ParagraphBuilder from './paragraph';
 import TextBuilder from './text';
+import EmphasisBuilder from './emphasis';
+import StrongBuilder from './strong';
 
 // interface Builder {
 //   update: (ch: string, point: Point) => any, // [TODO]
@@ -16,6 +18,8 @@ import TextBuilder from './text';
 
 const builders = new Map<string, typeof BaseBuilder>();
 builders.set('paragraph', ParagraphBuilder);
+// builders.set('strong', StrongBuilder);
+builders.set('emphasis', EmphasisBuilder);
 builders.set('text', TextBuilder);
 
 export default builders;

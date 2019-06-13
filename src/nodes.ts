@@ -1,10 +1,14 @@
 import { Point, Position } from './utils';
 
+interface NodeInnerData {
+  [key: string]: any;
+}
 
 export class Node {
   type: string;
   position: Position;
-  parentNode: PaternalNode | null;
+  parentNode: PaternalNode;
+  protected innerData: NodeInnerData;
 
   constructor(type = 'Node', position: Position) {
     this.type = type !== undefined ? type : 'Node';
@@ -12,6 +16,21 @@ export class Node {
       ? position
       : new Position(new Point(0,1,2), new Point(1,2,3));
     this.parentNode = null;
+    this.innerData = {};
+  }
+
+  public getInnerData(key: string) {
+    return this.innerData[key]; // [TODO]
+  }
+
+  public setInnerData(key: string, value: any) {
+    this.innerData[key] = value;
+  }
+
+  public removeInnerData(key: string) {
+    if (key in this.innerData) {
+      delete this.innerData[key];
+    }
   }
 
   // Subclasses
@@ -23,7 +42,7 @@ export class Node {
 
 export class PaternalNode extends Node {
   children: Node[];
-  constructor(type = 'PaternalNode', children = [] as Node[], position: Position) {
+  constructor(type = 'PaternalNode', position: Position, children = [] as Node[]) {
     super(type, position);
     this.children = children;
   }
@@ -48,33 +67,66 @@ export class PaternalNode extends Node {
     }
     this.children.splice(removedIndex, 1);
   }
+
+  get firstChild () {
+    const len = this.children.length;
+    return len ? this.children[0] : null;
+  }
+
+  get lastChild () {
+    const len = this.children.length;
+    return len ? this.children[len-1] : null;
+  }
+
+  get nextSibling () {
+    if (!this.parentNode) return null;
+    const nodes = this.parentNode.childNodes;
+    const i = nodes.indexOf(this);
+    return i >= 0 && i <= nodes.length - 2 ? nodes[i+1] : null;
+  }
+
+  get childNodes () {
+    return this.children;
+  }
 }
 
 class RootNode extends PaternalNode {
   constructor({ position, children = [] }: { position: Position, children?: Node[] }) {
-    super('Root', children, position);
+    super('root', position, children);
   }
 }
 
 class HeadingNode extends PaternalNode {
   depth: number;
   constructor({ position, depth, children }: { position: Position, depth: number, children: Node[] }) {
-    super('Heading', children, position);
+    super('heading', position, children);
     this.depth = depth;
   }
 }
 
 class ParagraphNode extends PaternalNode {
   constructor(position: Position, children = []) {
-    super('Paragraph', children, position);
+    super('paragraph', position, children);
   }
 }
 
 class TextNode extends Node {
   value: string;
   constructor(value: string, position: Position) {
-    super('Text', position);
+    super('text', position);
     this.value = value;
+  }
+}
+
+class EmphasisNode extends PaternalNode {
+  constructor(position: Position) {
+    super('emphasis', position);
+  }
+}
+
+class StrongNode extends PaternalNode {
+  constructor(position: Position) {
+    super('strong', position);
   }
 }
 
@@ -89,6 +141,8 @@ export {
   TextNode,
   ParagraphNode,
   HeadingNode,
+  EmphasisNode,
+  StrongNode,
 }
 
 /* export default {

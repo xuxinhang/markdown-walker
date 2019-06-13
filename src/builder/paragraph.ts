@@ -1,6 +1,6 @@
 // import CONT from '../symbols';
-import BaseBuilder, { BUILD_MSG_TYPE, BuildMsg } from './_base';
-import Node, { Point, ParagraphNode, Position } from '../nodes';
+import BaseBuilder, { BUILD_MSG_TYPE, BuildCmd } from './_base';
+import Node, { Point, ParagraphNode, Position, RootNode } from '../nodes';
 
 export default class ParagraphBuilder extends BaseBuilder {
   readyStart = true;
@@ -9,7 +9,7 @@ export default class ParagraphBuilder extends BaseBuilder {
   // ventureStarted: boolean = false;
   // ventureConfirmed: boolean = false;
 
-  reset(ch: string, position: Position): BuildMsg {
+  reset(ch: string, position: Position): BuildCmd {
     this.readyStart = true;
     // this.ventureStarted = false;
     // this.ventureConfirmed = false;
@@ -17,59 +17,45 @@ export default class ParagraphBuilder extends BaseBuilder {
   }
 
   feed(ch: string, position: Position, currentNode?: Node) {
-    if(ch === '\n') {
-      this.lineBreakCount++;
-      if(this.lineBreakCount >= 2) {
-        this.lineBreakCount = 0;
-        return [
-          { type: BUILD_MSG_TYPE.CLOSE_NODE },
-          {
-            type: BUILD_MSG_TYPE.COMMIT_AND_OPEN_NODE,
-            payload: new ParagraphNode(position),
-          },
-        ];
+    if (ch === '\u0002') { // start of file
+      this.lineBreakCount = 2;
+      return;
+    }
+
+    if (ch === '\u0003') { // end of file
+      if (currentNode.type !== 'paragraph') { // [TODO] 放到哪里去判断
+        return { type: BUILD_MSG_TYPE.CLOSE_NODE_UNPAIRED };
       } else {
-        if (currentNode instanceof ParagraphNode) {
-          return { type: BUILD_MSG_TYPE.USE };
-        } else {
-          return {
-            type: BUILD_MSG_TYPE.COMMIT_AND_OPEN_NODE,
-            payload: new ParagraphNode(position),
-          };
-        }
+        return [ BUILD_MSG_TYPE.CLOSE_NODE ];
       }
+    }
+
+    if (ch === '\n') {
+      this.lineBreakCount++;
+      return BUILD_MSG_TYPE.TERMINATE;
+    }
+
+    // other chars
+    if (this.lineBreakCount >= 2) {
+      const newNode = new ParagraphNode(position);
+      this.lineBreakCount = 0;
+
+      if (currentNode.type === 'root') {
+        return { type: BUILD_MSG_TYPE.COMMIT_AND_OPEN_NODE, payload: newNode };
+      }
+
+      if (currentNode.type !== 'paragraph') { // [TODO] 放到哪里去判断
+        return { type: BUILD_MSG_TYPE.CLOSE_NODE_UNPAIRED };
+      }
+
+      return [
+        BUILD_MSG_TYPE.CLOSE_NODE,
+        { type: BUILD_MSG_TYPE.COMMIT_AND_OPEN_NODE, payload: newNode },
+        BUILD_MSG_TYPE.CONTINUE,
+      ];
     } else {
       this.lineBreakCount = 0;
-      return {
-        type: BUILD_MSG_TYPE.PREPARE_NODE,
-        payload: undefined,
-      };
+      return;
     }
   }
-
-  /*update(ch: string, point: Point) {
-    if(ch === undefined) {
-      this.reset();
-      return BUILD_CMD.VENTURE_START;
-    }
-
-    if(ch === '\n') {
-      this.lineBreakCount++;
-      if(this.readyStart || this.lineBreakCount >= 2) {
-        this.readyStart = true;
-      }
-    }
-
-    if(this.lineBreakCount >= 2) {
-      this.ventureConfirmed = this.ventureStarted = false;
-      return BUILD_CMD.END_NODE;
-    }
-
-    if(ch !== '\n' && this.readyStart) {
-      this.lineBreakCount = 0;
-      this.readyStart = false;
-      this.ventureConfirmed = true;
-      return BUILD_CMD.VENTURE_START_CONFIRM;
-    }
-  }*/
 };

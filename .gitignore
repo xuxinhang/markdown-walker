@@ -1,2 +1,4 @@
 /referance
 node_modules
+__*
+/.vscode

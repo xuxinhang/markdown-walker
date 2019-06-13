@@ -2,6 +2,8 @@
  * 用于测试
  */
 
+require('ts-node').register();
+
 const fs = require('fs');
 const util = require('util');
 const parse = require('./src/parser.ts').default;

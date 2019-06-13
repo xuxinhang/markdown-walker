@@ -1,6 +1,0 @@
-ab
-we
-
-he
-
-she
