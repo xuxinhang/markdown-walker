@@ -26,18 +26,22 @@ export default class BaseBuilder {
 export enum BUILD_MSG_TYPE {
   PREPARE_NODE,
   COMMIT_NODE,
-  COMMIT_AND_OPEN_NODE,
   OPEN_NODE,
-  CLOSE_NODE,
-  DROP_NODE,
-  NONE, // a build reacts nothing to a char.
-  USE, // a build receives a char and requests not to pass it to other builds.
-  GIVE_UP, // a build decides to quit building a new node
+  // TRY_START,
+  // TRY_CANCEL,
+  // TRY_FINISH,
+  NONE = 'NONE', // a build reacts nothing to a char.
+  USE = 'USE', // a build receives a char and requests not to pass it to other builds.
+  GIVE_UP = 'GIVE_UP', // a build decides to quit building a new node
   /* process control */
-  TERMINATE,
-  CONTINUE,
+  TERMINATE = 'TERMINATE',
+  CONTINUE = 'CONTINUE',
   /* Errors */
-  CLOSE_NODE_UNPAIRED,
+  CLOSE_NODE_UNPAIRED = 'CLOSE_NODE_UNPAIRED',
+
+  CLOSE_NODE = 'CLOSE_NODE',
+  COMMIT_AND_OPEN_NODE = 'COMMIT_AND_OPEN_NODE',
+  DROP_NODE = 'DROP_NODE',
 }
 
 export interface BuildCmdObject {

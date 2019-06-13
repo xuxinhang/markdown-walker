@@ -7,18 +7,21 @@ export default class EmphasisBuilder extends BaseBuilder {
     if (ch !== '*' && ch !== '_') return;
 
     const currentBulletChar = ch;
-    const innerData = currentNode.getInnerData('emphasisBuilder');
-    const previousBulletChar = innerData && innerData.bulletChar;
 
-    if (currentNode.type === 'emphasis' && previousBulletChar === currentBulletChar) {
-      return [ { type: BUILD_MSG_TYPE.CLOSE_NODE }, BUILD_MSG_TYPE.TERMINATE ];
-    } else {
-      const newNode = new EmphasisNode(position);
-      newNode.setInnerData('emphasisBuilder', { bulletChar: currentBulletChar });
-      return [
-        { type: BUILD_MSG_TYPE.COMMIT_AND_OPEN_NODE, payload: newNode },
-        BUILD_MSG_TYPE.TERMINATE,
-      ];
+    if (currentNode instanceof EmphasisNode && currentNode.lastChild) {
+      const innerData = currentNode.getInnerData('emphasisBuilder');
+      const previousBulletChar = innerData && innerData.bulletChar;
+      if (previousBulletChar === currentBulletChar) {
+        return [ { type: BUILD_MSG_TYPE.CLOSE_NODE }, BUILD_MSG_TYPE.TERMINATE ];
+      }
     }
+
+    const newNode = new EmphasisNode(position);
+    newNode.setInnerData('emphasisBuilder', { bulletChar: currentBulletChar });
+    return [
+      BUILD_MSG_TYPE.USE,
+      { type: BUILD_MSG_TYPE.COMMIT_AND_OPEN_NODE, payload: newNode },
+      BUILD_MSG_TYPE.TERMINATE,
+    ];
   }
 }

@@ -26,48 +26,43 @@ export default class StrongBuilder extends BaseBuilder {
         this.bulletCount++;
       } else {
         this.resetBullet();
-        return { type: BUILD_MSG_TYPE.GIVE_UP, payload: this.bulletPoint };
+        return [
+          { type: BUILD_MSG_TYPE.GIVE_UP, payload: this.bulletPoint },
+          BUILD_MSG_TYPE.TERMINATE,
+        ];
       }
     } else {
       if (isValidBulletChar(ch)) {
         this.bulletChar = ch;
         this.bulletPoint = position.start;
         this.bulletCount = 1;
-        return { type: BUILD_MSG_TYPE.USE };
+        return [ BUILD_MSG_TYPE.USE, BUILD_MSG_TYPE.TERMINATE ];
       } else {
-        return { type: BUILD_MSG_TYPE.NONE }
+        return;
       }
     }
 
     if (this.bulletCount < 2) {
-      return { type: BUILD_MSG_TYPE.USE };
+      return BUILD_MSG_TYPE.TERMINATE;
     }
 
-    // Meet an open or close marker
-    const node = findParentNode(currentNode, node => {
-      const nodeInnerData: StrongBuilderNodeInnerData = node.getInnerData('strongBuilder');
-      return node instanceof StrongNode && nodeInnerData && nodeInnerData.bulletChar === this.bulletChar;
+    if (currentNode instanceof StrongNode && currentNode.lastChild) {
+      const nodeInnerData = currentNode.getInnerData('strongBuilder');
+      if (nodeInnerData && nodeInnerData.bulletChar === this.bulletChar) {
+        this.resetBullet();
+        return [ BUILD_MSG_TYPE.CLOSE_NODE, BUILD_MSG_TYPE.TERMINATE ];
+      }
+    }
+
+    // Create and open a new strong node
+    const newNode = new StrongNode(new Position(this.bulletPoint, this.bulletPoint));
+    newNode.setInnerData('strongBuilder', {
+      bulletChar: this.bulletChar,
     });
-
-    if (!node) {
-      // Create and open a new strong node
-      const newNode = new StrongNode(position);
-      newNode.setInnerData('strongBuilder', {
-        bulletChar: this.bulletChar,
-      });
-      this.resetBullet();
-      return {
-        type: BUILD_MSG_TYPE.COMMIT_AND_OPEN_NODE,
-        payload: newNode,
-      };
-    } else if (node === currentNode) {
-      // close current strong node
-      this.resetBullet();
-      return { type: BUILD_MSG_TYPE.CLOSE_NODE };
-    } else {
-      // throw error: fail to close node
-      this.resetBullet();
-      return { type: BUILD_MSG_TYPE.CLOSE_NODE_UNPAIRED };
-    }
+    this.resetBullet();
+    return [
+      { type: BUILD_MSG_TYPE.COMMIT_AND_OPEN_NODE, payload: newNode },
+      BUILD_MSG_TYPE.TERMINATE,
+    ];
   }
 }

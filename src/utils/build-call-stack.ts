@@ -11,7 +11,7 @@ export interface BuildCall {
 }
 
 export default class BuildCallStack {
-  private stack: BuildCall[] = [];
+  public stack: BuildCall[] = [];
 
   public push (name: string, position: Position) {
     return this.stack.push({ name, position, point: position.start });

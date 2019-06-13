@@ -23,7 +23,7 @@ export default function parse(src: string = '') {
   let lastGiveUpBuildName: string = '';
 
   let position = new Position(point, point);
-  let tree = new RootNode({ position });
+  var tree = new RootNode({ position });
   rootNode = tree;
   currentNode = tree;
 
@@ -51,7 +51,7 @@ export default function parse(src: string = '') {
     let continueBuildChain: boolean = true;
     let moveToNextPoint: boolean = true;
     let i = 0;
-
+    console.log(callStack.stack.map(item => item.name));
     // console.group('[feedChar] ', ch.replace('\n', '\\n'), position.start);
 
     // skip builds that have given up
@@ -65,7 +65,7 @@ export default function parse(src: string = '') {
       const item = builds[i];
       const rst = item.build.feed(ch, position, currentNode);
       const buildCmdList = rst ? (Array.isArray(rst) ? rst : [rst]) : [];
-      console.log('feed', item.name, rst);
+      // console.log('feed', item.name, rst);
 
       for (let cmd of buildCmdList) {
         cmd = typeof cmd === 'object' ? cmd : { type: cmd };
@@ -76,7 +76,6 @@ export default function parse(src: string = '') {
             appendNodeAsLastChild(cmd.payload);
             openLastChildNodeOfCurrentNode();
             lastGiveUpBuildName = '';
-            callStack.push(item.name, position);
             break;
 
           // commit node
@@ -104,13 +103,10 @@ export default function parse(src: string = '') {
 
           case BUILD_MSG_TYPE.GIVE_UP:
             var callRecord = callStack.pop();
-            var droppedNode = currentNode;
-            var parentNode = currentNode.parentNode;
-            parentNode.removeChild(droppedNode);
-            currentNode = parentNode;
             setPoint(callRecord.point);
             moveToNextPoint = false;
             lastGiveUpBuildName = callRecord.name;
+            continueBuildChain = false;
             break;
 
           case BUILD_MSG_TYPE.CLOSE_NODE_UNPAIRED:

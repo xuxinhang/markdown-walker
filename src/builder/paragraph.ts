@@ -24,6 +24,7 @@ export default class ParagraphBuilder extends BaseBuilder {
 
     if (ch === '\u0003') { // end of file
       if (currentNode.type !== 'paragraph') { // [TODO] 放到哪里去判断
+        this.lineBreakCount = 0;
         return { type: BUILD_MSG_TYPE.CLOSE_NODE_UNPAIRED };
       } else {
         return [ BUILD_MSG_TYPE.CLOSE_NODE ];
@@ -32,7 +33,7 @@ export default class ParagraphBuilder extends BaseBuilder {
 
     if (ch === '\n') {
       this.lineBreakCount++;
-      return BUILD_MSG_TYPE.TERMINATE;
+      return; // BUILD_MSG_TYPE.TERMINATE;
     }
 
     // other chars

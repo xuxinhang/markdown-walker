@@ -18,7 +18,7 @@ import StrongBuilder from './strong';
 
 const builders = new Map<string, typeof BaseBuilder>();
 builders.set('paragraph', ParagraphBuilder);
-// builders.set('strong', StrongBuilder);
+builders.set('strong', StrongBuilder);
 builders.set('emphasis', EmphasisBuilder);
 builders.set('text', TextBuilder);
 
