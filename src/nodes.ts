@@ -1,73 +1,82 @@
 import { Point, Position } from './utils';
+import { inspectNodeTree } from './utils/dev';
 
 interface NodeInnerData {
   [key: string]: any;
 }
 
+const inspectCustomSymbol = Symbol.for('nodejs.util.inspect.custom');
+
 export class Node {
   type: string;
   position: Position;
-  parentNode: PaternalNode;
+  parentNode: Node;
+  children: Node[];
+  rawContent: string;
   protected innerData: NodeInnerData;
 
-  constructor(type = 'Node', position: Position) {
+  constructor(type = 'Node', position: Position, children = [] as Node[]) {
     this.type = type !== undefined ? type : 'Node';
     this.position = position !== undefined
       ? position
       : new Position(new Point(0,1,2), new Point(1,2,3));
     this.parentNode = null;
     this.innerData = {};
+    this.children = children;
+    this.rawContent = '';
   }
 
+  // inner data store
   public getInnerData(key: string) {
     return this.innerData[key]; // [TODO]
   }
-
   public setInnerData(key: string, value: any) {
     this.innerData[key] = value;
   }
-
   public removeInnerData(key: string) {
     if (key in this.innerData) {
       delete this.innerData[key];
     }
   }
 
-  // Subclasses
-  static Root: Function;
-  static Heading: Function;
-  static Paragraph: Function;
-  static Text: Function;
-}
-
-export class PaternalNode extends Node {
-  children: Node[];
-  constructor(type = 'PaternalNode', position: Position, children = [] as Node[]) {
-    super(type, position);
-    this.children = children;
-  }
-
+  // child node operation
   public appendChild(child: Node) {
     this.children.push(child);
     child.parentNode = this;
+    return child;
   }
 
   public insertBefore(newNode: Node, referenceNode: Node) {
     const referenceIndex = this.children.indexOf(referenceNode);
     if (referenceIndex === -1) {
-      return false;
+      throw 'The node before which the new node is to be inserted is not a child of this node.';
+      // return null;
     }
     this.children.splice(referenceIndex, 0, newNode);
+    newNode.parentNode = this;
+    return newNode;
   }
 
   public removeChild(removedNode: Node) {
     const removedIndex = this.children.indexOf(removedNode);
     if (removedIndex === -1) {
-      return false;
+      return null;
     }
-    this.children.splice(removedIndex, 1);
+    const removed = this.children.splice(removedIndex, 1);
+    if (removed[0]) {
+      removed[0].parentNode = null;
+      return removed[0] || null;
+    } else {
+      return null;
+    }
   }
 
+  public replaceChild(newChild: Node, oldChild: Node) {
+    this.insertBefore(newChild, oldChild);
+    this.removeChild(oldChild);
+  }
+
+  // access child nodes
   get firstChild () {
     const len = this.children.length;
     return len ? this.children[0] : null;
@@ -88,15 +97,20 @@ export class PaternalNode extends Node {
   get childNodes () {
     return this.children;
   }
+
+  // for debug
+  [inspectCustomSymbol]() {
+    return inspectNodeTree(this);
+  }
 }
 
-class RootNode extends PaternalNode {
-  constructor({ position, children = [] }: { position: Position, children?: Node[] }) {
+export class RootNode extends Node {
+  constructor(position: Position, children = [] as Node[]) {
     super('root', position, children);
   }
 }
 
-class HeadingNode extends PaternalNode {
+export class HeadingNode extends Node {
   depth: number;
   constructor({ position, depth, children }: { position: Position, depth: number, children: Node[] }) {
     super('heading', position, children);
@@ -104,13 +118,13 @@ class HeadingNode extends PaternalNode {
   }
 }
 
-class ParagraphNode extends PaternalNode {
+export class ParagraphNode extends Node {
   constructor(position: Position, children = []) {
     super('paragraph', position, children);
   }
 }
 
-class TextNode extends Node {
+export class TextNode extends Node {
   value: string;
   constructor(value: string, position: Position) {
     super('text', position);
@@ -118,40 +132,22 @@ class TextNode extends Node {
   }
 }
 
-class EmphasisNode extends PaternalNode {
+export class EmphasisNode extends Node {
+  bulletCount: number = 1;
+  bulletChar: string = '';
+  bulletOpenRunLength?: number;
+  bulletCloseRunLength?: number;
   constructor(position: Position) {
     super('emphasis', position);
   }
 }
 
-class StrongNode extends PaternalNode {
+export class StrongNode extends EmphasisNode {
   constructor(position: Position) {
-    super('strong', position);
+    super(position);
+    this.type = 'strong';
   }
 }
 
-Node.Text = TextNode;
-Node.Paragraph = ParagraphNode;
-Node.Heading = HeadingNode;
-
 export default Node;
 export { Position, Point };
-export {
-  RootNode,
-  TextNode,
-  ParagraphNode,
-  HeadingNode,
-  EmphasisNode,
-  StrongNode,
-}
-
-/* export default {
-  // node classes
-  Root: RootNode,
-  Heading: HeadingNode,
-  Text: TextNode,
-  // basic classes
-  Node: Node,
-  Point: Point,
-  Position: Position,
-}; */

@@ -1,14 +1,14 @@
 import BaseBuilder, { BUILD_MSG_TYPE } from './_base';
 import { Point, Position } from '../utils';
-import Node, { TextNode, PaternalNode } from '../nodes';
+import Node, { TextNode } from '../nodes';
 
 export default class TextBuilder extends BaseBuilder {
   feed(ch: string, position: Position, currentNode: Node) {
     // ignore control characters
-    if (ch === '\n' || ch === '\r' || ch === '\u0002' || ch === '\u0003') return;
+    if (ch === '\n' || ch === '\r' || ch === '\u0002' || ch === '\u0003' || ch === '\0') return;
 
     // attach characters to tailed text node
-    if (currentNode instanceof PaternalNode) {
+    if (currentNode instanceof Node) {
       const tailNode = currentNode.lastChild;
       if (tailNode instanceof TextNode) {
         tailNode.value += ch
@@ -16,6 +16,8 @@ export default class TextBuilder extends BaseBuilder {
       }
     }
 
-    return { type: BUILD_MSG_TYPE.COMMIT_NODE, payload: new TextNode(ch, position) };
+    const node = new TextNode(ch, position);
+    currentNode.appendChild(node);
+    return { type: BUILD_MSG_TYPE.OPEN_NODE, payload: currentNode };
   }
 }

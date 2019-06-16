@@ -3,12 +3,11 @@ import Node from '../nodes';
 
 export default class BaseBuilder {
   [props: string]: any;
-  update(ch: string, point: Point) {
-    return;
-  }
+
   feed(ch: string, position: Position, currentNode?: Node): (BuildCmd) {
     return { type: BUILD_MSG_TYPE.NONE };
   }
+
   reset(ch: string, position: Position): (BuildCmd) {
     return { type: BUILD_MSG_TYPE.NONE };
   }

@@ -1,4 +1,4 @@
-import Node, { RootNode, PaternalNode } from './nodes';
+import Node, { RootNode } from './nodes';
 import { Position, Point, mergeNode } from './utils';
 import builders, { Builder, BUILD_MSG_TYPE } from './builder';
 import BuildCallStack from './utils/build-call-stack';
@@ -12,46 +12,37 @@ interface BuildItem {
   builder: any;
 }
 
-export default function parse(src: string = '') {
+export default function parseInline(src: string = '') {
   let point: Point = new Point(1, 1, 0);
   let builds: BuildItem[] = [];
   let currentNode: Node;
-  let rootNode: RootNode;
 
   // Initialize a build call stack
   const callStack = new BuildCallStack();
   let lastGiveUpBuildName: string = '';
 
   let position = new Position(point, point);
-  var tree = new RootNode({ position });
-  rootNode = tree;
+  var tree = new RootNode(position);
   currentNode = tree;
 
   // Initialize
   builds = initBuildList(builders);
-  feedChar('\u0002', position);
 
   setPoint(new Point(1, 1, 0));
 
   while (true) {
     const ch = src.charAt(point.offset);
-    if (ch) {
-      feedChar(ch, position);
-      continue;
-    }
-
-    feedChar('\u0003', position);
-    if (!src.charAt(point.offset)) break;
+    if (!ch) break;
+    feedChar(ch, position);
   }
 
   return tree;
 
-  // Feed a single char into each build
   function feedChar(ch: string, position: Position) {
     let continueBuildChain: boolean = true;
     let moveToNextPoint: boolean = true;
     let i = 0;
-    console.log(callStack.stack.map(item => item.name));
+    // console.log(callStack.stack.map(item => item.name));
     // console.group('[feedChar] ', ch.replace('\n', '\\n'), position.start);
 
     // skip builds that have given up
@@ -77,7 +68,10 @@ export default function parse(src: string = '') {
             openLastChildNodeOfCurrentNode();
             lastGiveUpBuildName = '';
             break;
-
+          case BUILD_MSG_TYPE.OPEN_NODE:
+            openNode(cmd.payload);
+            lastGiveUpBuildName = '';
+            break;
           // commit node
           case BUILD_MSG_TYPE.COMMIT_NODE:
             appendNodeAsLastChild(cmd.payload);
@@ -165,13 +159,13 @@ export default function parse(src: string = '') {
   }
 
   function openLastChildNodeOfCurrentNode() {
-    if (currentNode instanceof PaternalNode) {
+    if (currentNode instanceof Node) {
       openNode(currentNode.children[currentNode.children.length - 1]);
     }
   }
 
   function appendNodeAsLastChild(node: Node) {
-    if (currentNode instanceof PaternalNode) {
+    if (currentNode instanceof Node) {
       currentNode.appendChild(node);
     } else {
       return false;
