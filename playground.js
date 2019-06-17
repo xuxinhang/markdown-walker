@@ -16,12 +16,16 @@ const mdStr = fs.readFileSync('./__example-markdown.md', 'utf8');
 // const ast = parse(mdStr);
 
 function run(src) {
-  const ast = parse(src + '\0');
+  const ast = parse(src);
   return ast;
 }
 
 var cases = [
-  '*foo**bar**baz*',
+  // '_A __B__C_',
+  'foo **_**',
+  // 'foo*',
+  '*foo _bar* baz_',
+  '*A**B**C*',
 ];
 
 cases.forEach(item => {

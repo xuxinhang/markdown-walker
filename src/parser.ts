@@ -29,16 +29,16 @@ export default function parseInline(src: string = '') {
   setPoint(new Point(1, 1, 0));
 
   // feed each char one by one
-  while (true) {
+  while (point.offset >= 0) {
     const ch = src.charAt(point.offset);
     if (!ch) break;
     feedChar(ch, position);
   }
 
   // feed NULL character as end mark until all nodes are closed
-  while (!(currentNode instanceof RootNode)) {
+  do {
     feedChar('\0', position);
-  }
+  } while (!(currentNode instanceof RootNode));
 
   return tree;
 
@@ -190,4 +190,3 @@ function initBuildList(builderMap: Map<string, typeof Builder>) {
   }
   return buildList;
 }
-

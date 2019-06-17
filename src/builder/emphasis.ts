@@ -2,30 +2,6 @@ import BaseBuilder, { BUILD_MSG_TYPE, BuildCmd } from './_base';
 import { Point, Position, isUnicodeWhitespaceChar, isPunctuationChar, repeatChar } from '../utils';
 import Node, { EmphasisNode, StrongNode, TextNode } from '../nodes';
 
-/* export default class EmphasisBuilder extends BaseBuilder {
-  feed(ch: string, position: Position, currentNode: Node) {
-    if (ch !== '*' && ch !== '_') return;
-
-    const currentBulletChar = ch;
-
-    if (currentNode instanceof EmphasisNode && currentNode.lastChild) {
-      const innerData = currentNode.getInnerData('emphasisBuilder');
-      const previousBulletChar = innerData && innerData.bulletChar;
-      if (previousBulletChar === currentBulletChar) {
-        return [ { type: BUILD_MSG_TYPE.CLOSE_NODE }, BUILD_MSG_TYPE.TERMINATE ];
-      }
-    }
-
-    const newNode = new EmphasisNode(position);
-    newNode.setInnerData('emphasisBuilder', { bulletChar: currentBulletChar });
-    return [
-      BUILD_MSG_TYPE.USE,
-      { type: BUILD_MSG_TYPE.COMMIT_AND_OPEN_NODE, payload: newNode },
-      BUILD_MSG_TYPE.TERMINATE,
-    ];
-  }
-} */
-
 enum BulletType { LEFT = 2, RIGHT = 1, BOTH = 3, NEITHER = 0 };
 
 export default class EmphasisBuilder extends BaseBuilder {
@@ -78,66 +54,69 @@ export default class EmphasisBuilder extends BaseBuilder {
   feed(ch: string, position: Position, currentNode: Node): BuildCmd {
     const eol = ch === '\0';
 
-    if (ch !== '*' && ch !== '_') {
-      if (this.bulletCount) {
-        this.bulletFollowedChar = ch;
+    /** The input-action map table
+     *  =================================
+     *  |bullet| ch    | >>> actions
+     *  |------|-------|-----------------
+     *  | *    | *     | >>> B
+     *  | *    | _     | >>> N then B
+     *  | *    | other | >>> N
+     *  | _    | *     | >>> N then B
+     *  | _    | _     | >>> B
+     *  | _    | other | >>> N
+     *  | none | *     | >>> B
+     *  | none | _     | >>> B
+     *  | none | other | >>> C
+     *  |------|-------|-----------------
+     *  | B = record bullet runs
+     *  | N = close the previous nodes and open the new node
+     *  | C = close all nodes when meet the end of line
+     *  =================================
+     */
 
-        let prevBulletCount: number = 0;
-        let curtBulletCount: number = this.bulletCount;
-        // let openNode: Node = null;
+    if (this.bulletCount && ch !== this.bulletChar) {
+      this.bulletFollowedChar = ch;
 
-        // decide whether the delimiter run can open/close emphasis
-        let canOpenNode = false, canCloseNode = false;
-        switch (this.bulletChar) {
-          case '*':
-            canOpenNode = this.bulletLeftFlanking;
-            canCloseNode = this.bulletRightFlanking;
+      // decide whether the delimiter run can open/close emphasis
+      let bulletRunCanOpenNode = false, bulletRunCanCloseNode = false;
+      switch (this.bulletChar) {
+        case '*':
+          bulletRunCanOpenNode = this.bulletLeftFlanking;
+          bulletRunCanCloseNode = this.bulletRightFlanking;
+          break;
+        case '_':
+          bulletRunCanOpenNode = this.bulletLeftFlanking &&
+            (!this.bulletRightFlanking || (this.bulletRightFlanking && isPunctuationChar(this.bulletPrecededChar)));
+          bulletRunCanCloseNode = this.bulletRightFlanking &&
+            (!this.bulletLeftFlanking || (this.bulletLeftFlanking && isPunctuationChar(this.bulletFollowedChar)));
+          break;
+      }
+
+      let prevBulletCount: number = 0;
+      let curtBulletCount: number = this.bulletCount;
+      let backupCurrentNode: Node = currentNode; // the last node in which the new node can be inserted
+
+      if (bulletRunCanCloseNode) { // if this bullet run can close emphasis node
+        const textifyPlan: EmphasisNode[] = [];
+
+        // then try to close the current node and all parent nodes
+        while (curtBulletCount > 0) { // there are still bullets
+          if (!(currentNode instanceof EmphasisNode)) {
+            // must be in emphasis node. if not, restore currentNode to prepare to create new node.
+            currentNode = backupCurrentNode;
             break;
-          case '_':
-            canOpenNode = this.bulletLeftFlanking &&
-              (!this.bulletRightFlanking || (this.bulletRightFlanking && isPunctuationChar(this.bulletPrecededChar)));
-            canCloseNode = this.bulletRightFlanking &&
-              (!this.bulletLeftFlanking || (this.bulletLeftFlanking && isPunctuationChar(this.bulletFollowedChar)));
-            break;
-        }
+          }
 
-        // if this bullet run can close emphasis node
-        if (canCloseNode) {
-          const textifyPlan: EmphasisNode[] = [];
-          // then try to close the current node and all parent nodes
-          while (
-            currentNode instanceof EmphasisNode && // current in emphasis node
-            curtBulletCount > 0 // there are still bullets
-          ) {
-            // Rule 9, 10
-            if (currentNode.bulletOpenCanBothOpenAndClose || canOpenNode && canCloseNode) {
-              if ((this.bulletCount + currentNode.bulletOpenRunLength) % 3 === 0) {
-                if (!(this.bulletCount % 3 === 0 && currentNode.bulletOpenRunLength % 3 === 0)) {
-                  // the current run cannot matches the previous run due to rules
-                  textifyPlan.push(currentNode);
-                  const parent = currentNode.parentNode;
-                  if (parent instanceof EmphasisNode) {
-                    currentNode = currentNode.parentNode;
-                    continue;
-                  } else {
-                    break;
-                  }
-                }
-              }
-            }
+          const forbidenByRuleNineAndTen = (
+            (currentNode.bulletOpenCanBothOpenAndClose || bulletRunCanOpenNode && bulletRunCanCloseNode) &&
+            (this.bulletCount + currentNode.bulletOpenRunLength) % 3 === 0 &&
+            !(this.bulletCount % 3 === 0 && currentNode.bulletOpenRunLength % 3 === 0)
+          );
+          const haveSameBulletChar = (currentNode.bulletChar === this.bulletChar);
 
-            if (currentNode.bulletChar !== this.bulletChar) {
-              // the current run cannot matches the previous run due to rules
-              textifyPlan.push(currentNode);
-              const parent = currentNode.parentNode;
-              if (parent instanceof EmphasisNode) {
-                currentNode = currentNode.parentNode;
-                continue;
-              } else {
-                break;
-              }
-            }
-
+          // decide whether the current bullet run can close *current* node
+          if (!forbidenByRuleNineAndTen && haveSameBulletChar) {
+            // handle nodes marked to textify
             textifyPlan.forEach(textifyNode);
             textifyPlan.splice(0);
 
@@ -153,6 +132,7 @@ export default class EmphasisBuilder extends BaseBuilder {
               parent.replaceChild(newNode, currentNode);
 
               currentNode = parent;
+              backupCurrentNode = currentNode;
             } else {
               prevBulletCount = prevBulletCount - curtBulletCount; // > 0
               currentNode.bulletCount = prevBulletCount;
@@ -163,60 +143,62 @@ export default class EmphasisBuilder extends BaseBuilder {
 
               curtBulletCount = 0; // insert no more emphasis node
             }
-          }
-        }
-
-        if (curtBulletCount > 0) {
-          if (canOpenNode) {
-            const emNode = new EmphasisNode(position);
-            emNode.bulletChar = this.bulletChar;
-            emNode.bulletCount = curtBulletCount;
-            emNode.bulletOpenRunLength = this.bulletCount;
-            emNode.bulletCloseRunLength = undefined;
-            emNode.bulletOpenCanBothOpenAndClose = canOpenNode && canCloseNode;
-            currentNode.appendChild(emNode);
-
-            currentNode = emNode;
           } else {
-            currentNode.appendText(repeatChar(this.bulletChar, curtBulletCount), position);
+            // continue to upcast to seek for a matchable node
+            textifyPlan.push(currentNode);
+            const parent = currentNode.parentNode;
+            currentNode = parent;
           }
         }
-
-        this.resetBullet();
-        this.bulletPrecededChar = ch;
-
-        if (eol && (currentNode instanceof EmphasisNode)) {
-          let parent = currentNode.parentNode;
-          textifyNode(currentNode);
-          currentNode = parent;
-        }
-
-        return [
-          { type: BUILD_MSG_TYPE.OPEN_NODE, payload: currentNode },
-        ];
-      } else {
-        this.bulletPrecededChar = ch;
-
-        if (eol && (currentNode instanceof EmphasisNode)) {
-          let parent = currentNode.parentNode;
-          textifyNode(currentNode);
-          currentNode = parent;
-        }
-
-        return { type: BUILD_MSG_TYPE.OPEN_NODE, payload: currentNode };
       }
-    } else {
-      if (this.bulletCount) {
-        if (this.bulletChar === ch) {
-          this.bulletCount++;
+
+      if (curtBulletCount > 0) {
+        if (bulletRunCanOpenNode) {
+          const emNode = new EmphasisNode(position);
+          emNode.bulletChar = this.bulletChar;
+          emNode.bulletCount = curtBulletCount;
+          emNode.bulletOpenRunLength = this.bulletCount;
+          emNode.bulletCloseRunLength = undefined;
+          emNode.bulletOpenCanBothOpenAndClose = bulletRunCanOpenNode && bulletRunCanCloseNode;
+          currentNode.appendChild(emNode);
+
+          currentNode = emNode;
+        } else {
+          currentNode.appendText(repeatChar(this.bulletChar, curtBulletCount), position);
         }
-        return BUILD_MSG_TYPE.USE;
+      }
+
+      this.resetBullet();
+      this.bulletPrecededChar = ch;
+    }
+
+    // update this record
+    if (!this.bulletCount && ch !== '*' && ch !== '_') {
+      this.bulletPrecededChar = ch;
+    }
+
+    // if meet the end of line, just close the node.
+    if (eol && (currentNode instanceof EmphasisNode)) {
+      let parent = currentNode.parentNode;
+      textifyNode(currentNode);
+      currentNode = parent;
+    }
+
+    if (ch === '*' || ch === '_') {
+      if (this.bulletCount) {
+        // [TODO] 这个条件判断是必要的吗
+        if (this.bulletChar === ch) this.bulletCount++;
       } else {
         this.bulletChar = ch;
         this.bulletCount = 1;
-        return BUILD_MSG_TYPE.USE;
       }
+      return [
+        BUILD_MSG_TYPE.USE,
+        { type: BUILD_MSG_TYPE.OPEN_NODE, payload: currentNode },
+      ];
     }
+
+    return { type: BUILD_MSG_TYPE.OPEN_NODE, payload: currentNode };
   }
 }
 
