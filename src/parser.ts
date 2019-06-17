@@ -3,8 +3,6 @@ import { Position, Point, mergeNode } from './utils';
 import builders, { Builder, BUILD_MSG_TYPE } from './builder';
 import BuildCallStack from './utils/build-call-stack';
 
-const builds: Builder[] = [];
-
 interface BuildItem {
   name: string;
   precedence: number;
@@ -30,10 +28,16 @@ export default function parseInline(src: string = '') {
 
   setPoint(new Point(1, 1, 0));
 
+  // feed each char one by one
   while (true) {
     const ch = src.charAt(point.offset);
     if (!ch) break;
     feedChar(ch, position);
+  }
+
+  // feed NULL character as end mark until all nodes are closed
+  while (!(currentNode instanceof RootNode)) {
+    feedChar('\0', position);
   }
 
   return tree;

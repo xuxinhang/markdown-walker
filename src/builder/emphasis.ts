@@ -1,7 +1,6 @@
 import BaseBuilder, { BUILD_MSG_TYPE, BuildCmd } from './_base';
 import { Point, Position, isUnicodeWhitespaceChar, isPunctuationChar, repeatChar } from '../utils';
 import Node, { EmphasisNode, StrongNode, TextNode } from '../nodes';
-import StrongBuilder from './strong';
 
 /* export default class EmphasisBuilder extends BaseBuilder {
   feed(ch: string, position: Position, currentNode: Node) {
@@ -37,8 +36,22 @@ export default class EmphasisBuilder extends BaseBuilder {
   private bulletPrecededChar: string = '';
   private bulletFollowedChar: string = '';
 
+  constructor() {
+    super();
+    this.resetBullet();
+  }
+
+  private resetBullet() {
+    this.bulletChar = '';
+    this.bulletCount = 0;
+    this.bulletPoint = null;
+    // the beginning and the end of the line count as Unicode whitespace
+    this.bulletPrecededChar = ' ';
+    this.bulletFollowedChar = '';
+  }
+
   get bulletLeftFlanking () {
-    const followedByUnicodeWhitespace = isUnicodeWhitespaceChar(this.bulletFollowedChar);
+    const followedByUnicodeWhitespace = this.bulletFollowedChar === '\0' || isUnicodeWhitespaceChar(this.bulletFollowedChar);
     const followedByPunctuationChar = isPunctuationChar(this.bulletFollowedChar);
     const precededByUnicodeWhitespace = isUnicodeWhitespaceChar(this.bulletPrecededChar);
     const precededByPunctuationChar = isPunctuationChar(this.bulletPrecededChar);
@@ -50,7 +63,8 @@ export default class EmphasisBuilder extends BaseBuilder {
   }
 
   get bulletRightFlanking () {
-    const followedByUnicodeWhitespace = isUnicodeWhitespaceChar(this.bulletFollowedChar);
+    // the beginning and the end of the line count as Unicode whitespace.
+    const followedByUnicodeWhitespace = this.bulletFollowedChar === '\0' || isUnicodeWhitespaceChar(this.bulletFollowedChar);
     const followedByPunctuationChar = isPunctuationChar(this.bulletFollowedChar);
     const precededByUnicodeWhitespace = isUnicodeWhitespaceChar(this.bulletPrecededChar);
     const precededByPunctuationChar = isPunctuationChar(this.bulletPrecededChar);
@@ -61,18 +75,10 @@ export default class EmphasisBuilder extends BaseBuilder {
       );
   }
 
-  private resetBullet() {
-    this.bulletChar = '';
-    this.bulletCount = 0;
-    this.bulletPoint = null;
-    this.bulletFollowedChar = '';
-    this.bulletPrecededChar = '';
-  }
-
   feed(ch: string, position: Position, currentNode: Node): BuildCmd {
     const eol = ch === '\0';
 
-    if (ch !== '*' /* && ch !== '_' */) {
+    if (ch !== '*' && ch !== '_') {
       if (this.bulletCount) {
         this.bulletFollowedChar = ch;
 
@@ -80,13 +86,61 @@ export default class EmphasisBuilder extends BaseBuilder {
         let curtBulletCount: number = this.bulletCount;
         // let openNode: Node = null;
 
+        // decide whether the delimiter run can open/close emphasis
+        let canOpenNode = false, canCloseNode = false;
+        switch (this.bulletChar) {
+          case '*':
+            canOpenNode = this.bulletLeftFlanking;
+            canCloseNode = this.bulletRightFlanking;
+            break;
+          case '_':
+            canOpenNode = this.bulletLeftFlanking &&
+              (!this.bulletRightFlanking || (this.bulletRightFlanking && isPunctuationChar(this.bulletPrecededChar)));
+            canCloseNode = this.bulletRightFlanking &&
+              (!this.bulletLeftFlanking || (this.bulletLeftFlanking && isPunctuationChar(this.bulletFollowedChar)));
+            break;
+        }
+
         // if this bullet run can close emphasis node
-        if (this.bulletRightFlanking) {
+        if (canCloseNode) {
+          const textifyPlan: EmphasisNode[] = [];
           // then try to close the current node and all parent nodes
-          while (currentNode instanceof EmphasisNode && // current in emphasis node
-            curtBulletCount > 0 && // there are still bullets
-            (this.bulletCount + currentNode.bulletOpenRunLength) % 3 !== 0 // Rule 9, 10
+          while (
+            currentNode instanceof EmphasisNode && // current in emphasis node
+            curtBulletCount > 0 // there are still bullets
           ) {
+            // Rule 9, 10
+            if (currentNode.bulletOpenCanBothOpenAndClose || canOpenNode && canCloseNode) {
+              if ((this.bulletCount + currentNode.bulletOpenRunLength) % 3 === 0) {
+                if (!(this.bulletCount % 3 === 0 && currentNode.bulletOpenRunLength % 3 === 0)) {
+                  // the current run cannot matches the previous run due to rules
+                  textifyPlan.push(currentNode);
+                  const parent = currentNode.parentNode;
+                  if (parent instanceof EmphasisNode) {
+                    currentNode = currentNode.parentNode;
+                    continue;
+                  } else {
+                    break;
+                  }
+                }
+              }
+            }
+
+            if (currentNode.bulletChar !== this.bulletChar) {
+              // the current run cannot matches the previous run due to rules
+              textifyPlan.push(currentNode);
+              const parent = currentNode.parentNode;
+              if (parent instanceof EmphasisNode) {
+                currentNode = currentNode.parentNode;
+                continue;
+              } else {
+                break;
+              }
+            }
+
+            textifyPlan.forEach(textifyNode);
+            textifyPlan.splice(0);
+
             prevBulletCount = currentNode.bulletCount;
 
             // previous delimiter run vs. current delimiter run
@@ -113,34 +167,43 @@ export default class EmphasisBuilder extends BaseBuilder {
         }
 
         if (curtBulletCount > 0) {
-          if (this.bulletLeftFlanking) {
+          if (canOpenNode) {
             const emNode = new EmphasisNode(position);
             emNode.bulletChar = this.bulletChar;
             emNode.bulletCount = curtBulletCount;
             emNode.bulletOpenRunLength = this.bulletCount;
             emNode.bulletCloseRunLength = undefined;
+            emNode.bulletOpenCanBothOpenAndClose = canOpenNode && canCloseNode;
             currentNode.appendChild(emNode);
 
             currentNode = emNode;
           } else {
-            currentNode.appendChild(new TextNode(repeatChar(this.bulletChar, curtBulletCount), position));
+            currentNode.appendText(repeatChar(this.bulletChar, curtBulletCount), position);
           }
         }
 
         this.resetBullet();
+        this.bulletPrecededChar = ch;
 
-        if (eol && (currentNode instanceof EmphasisNode))
+        if (eol && (currentNode instanceof EmphasisNode)) {
+          let parent = currentNode.parentNode;
           textifyNode(currentNode);
+          currentNode = parent;
+        }
 
         return [
-          currentNode ? { type: BUILD_MSG_TYPE.OPEN_NODE, payload: currentNode } : undefined,
+          { type: BUILD_MSG_TYPE.OPEN_NODE, payload: currentNode },
         ];
       } else {
         this.bulletPrecededChar = ch;
-        if (eol && (currentNode instanceof EmphasisNode))
-          textifyNode(currentNode);
 
-        return;
+        if (eol && (currentNode instanceof EmphasisNode)) {
+          let parent = currentNode.parentNode;
+          textifyNode(currentNode);
+          currentNode = parent;
+        }
+
+        return { type: BUILD_MSG_TYPE.OPEN_NODE, payload: currentNode };
       }
     } else {
       if (this.bulletCount) {

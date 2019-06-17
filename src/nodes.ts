@@ -46,36 +46,6 @@ export class Node {
     return child;
   }
 
-  public insertBefore(newNode: Node, referenceNode: Node) {
-    const referenceIndex = this.children.indexOf(referenceNode);
-    if (referenceIndex === -1) {
-      throw 'The node before which the new node is to be inserted is not a child of this node.';
-      // return null;
-    }
-    this.children.splice(referenceIndex, 0, newNode);
-    newNode.parentNode = this;
-    return newNode;
-  }
-
-  public removeChild(removedNode: Node) {
-    const removedIndex = this.children.indexOf(removedNode);
-    if (removedIndex === -1) {
-      return null;
-    }
-    const removed = this.children.splice(removedIndex, 1);
-    if (removed[0]) {
-      removed[0].parentNode = null;
-      return removed[0] || null;
-    } else {
-      return null;
-    }
-  }
-
-  public replaceChild(newChild: Node, oldChild: Node) {
-    this.insertBefore(newChild, oldChild);
-    this.removeChild(oldChild);
-  }
-
   // access child nodes
   get firstChild () {
     const len = this.children.length;
@@ -96,6 +66,70 @@ export class Node {
 
   get childNodes () {
     return this.children;
+  }
+
+  public insertBefore(newNode: Node, referenceNode: Node): Node {
+    const referenceIndex = this.children.indexOf(referenceNode);
+    if (referenceIndex === -1) {
+      throw 'The node before which the new node is to be inserted is not a child of this node.';
+      // return null;
+    }
+    this.children.splice(referenceIndex, 0, newNode);
+    newNode.parentNode = this;
+    return newNode;
+  }
+
+  public removeChild(removedNode: Node): Node {
+    const removedIndex = this.children.indexOf(removedNode);
+    if (removedIndex === -1) {
+      return null;
+    }
+    const removed = this.children.splice(removedIndex, 1);
+    if (removed[0]) {
+      removed[0].parentNode = null;
+      return removed[0] || null;
+    } else {
+      return null;
+    }
+  }
+
+  public replaceChild(newChild: Node, oldChild: Node) {
+    this.insertBefore(newChild, oldChild);
+    this.removeChild(oldChild);
+  }
+
+  // extended methods
+  public appendText(text: string, position: Position): Node {
+    // attach characters to tailed text node
+    const tailNode = this.lastChild;
+    if (tailNode instanceof TextNode) {
+      tailNode.value += text;
+      return;
+    }
+    const node = new TextNode(text, position);
+    this.appendChild(node);
+    return node;
+  }
+
+  public insertTextBefore(refNode: Node, text: string, position: Position): Node {
+    const i = this.children.indexOf(refNode);
+    if (i === -1) throw 'The reference node is not a child of this node.';
+
+    const node = this.children[i];
+    if (node instanceof TextNode) {
+      node.value = text + node.value;
+      return node;
+    }
+
+    const preNode = i > 0 ? this.children[i-1] : null
+    if (preNode && preNode instanceof TextNode) {
+      preNode.value = preNode.value + text;
+      return preNode;
+    }
+
+    const newNode = new TextNode(text, position);
+    this.insertBefore(newNode, refNode);
+    return newNode;
   }
 
   // for debug
@@ -137,6 +171,7 @@ export class EmphasisNode extends Node {
   bulletChar: string = '';
   bulletOpenRunLength?: number;
   bulletCloseRunLength?: number;
+  bulletOpenCanBothOpenAndClose?: boolean;
   constructor(position: Position) {
     super('emphasis', position);
   }

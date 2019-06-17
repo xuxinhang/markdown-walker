@@ -7,17 +7,19 @@ export default class TextBuilder extends BaseBuilder {
     // ignore control characters
     if (ch === '\n' || ch === '\r' || ch === '\u0002' || ch === '\u0003' || ch === '\0') return;
 
-    // attach characters to tailed text node
-    if (currentNode instanceof Node) {
-      const tailNode = currentNode.lastChild;
-      if (tailNode instanceof TextNode) {
-        tailNode.value += ch
-        return;
-      }
-    }
+    // // attach characters to tailed text node
+    // if (currentNode instanceof Node) {
+    //   const tailNode = currentNode.lastChild;
+    //   if (tailNode instanceof TextNode) {
+    //     tailNode.value += ch
+    //     return;
+    //   }
+    // }
 
-    const node = new TextNode(ch, position);
-    currentNode.appendChild(node);
+    // const node = new TextNode(ch, position);
+    // currentNode.appendChild(node);
+
+    currentNode.appendText(ch, position);
     return { type: BUILD_MSG_TYPE.OPEN_NODE, payload: currentNode };
   }
 }
