@@ -12,7 +12,7 @@ const http = require('http');
 const parse = require('./src/parser.ts').default;
 
 
-const mdStr = fs.readFileSync('./__example-markdown.md', 'utf8');
+// const mdStr = fs.readFileSync('./__example-markdown.md', 'utf8');
 // const ast = parse(mdStr);
 
 function run(src) {
@@ -22,10 +22,12 @@ function run(src) {
 
 var cases = [
   // '_A __B__C_',
-  'foo **_**',
+  // 'foo **_**',
   // 'foo*',
-  '*foo _bar* baz_',
-  '*A**B**C*',
+  // '*foo _bar* baz_',
+  // '*A**B**C*',
+  '[A](x)*',
+  // '[[#]ABC](xyz)',
 ];
 
 cases.forEach(item => {

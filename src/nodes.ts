@@ -184,5 +184,15 @@ export class StrongNode extends EmphasisNode {
   }
 }
 
+export class LinkNode extends Node {
+  constructor(position: Position, dest: string = '', title: string = '') {
+    super('link', position);
+    this.dest = dest;
+    this.title = title;
+  }
+  dest: string = '';
+  title: string = '';
+}
+
 export default Node;
 export { Position, Point };

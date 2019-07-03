@@ -53,28 +53,30 @@ export default class EmphasisBuilder extends BaseBuilder {
 
   feed(ch: string, position: Position, currentNode: Node): BuildCmd {
     const eol = ch === '\0';
+    const isBulletChar = ch === '*' || ch === '_';
 
     /** The input-action map table
      *  =================================
      *  |bullet| ch    | >>> actions
      *  |------|-------|-----------------
-     *  | *    | *     | >>> B
-     *  | *    | _     | >>> N then B
-     *  | *    | other | >>> N
-     *  | _    | *     | >>> N then B
-     *  | _    | _     | >>> B
-     *  | _    | other | >>> N
-     *  | none | *     | >>> B
-     *  | none | _     | >>> B
-     *  | none | other | >>> C
+     *  | *    | *     | >>> [B]
+     *  | *    | _     | >>> [N] then [B]
+     *  | *    | other | >>> [N]
+     *  | _    | *     | >>> [N] then [B]
+     *  | _    | _     | >>> [B]
+     *  | _    | other | >>> [N]
+     *  | none | *     | >>> [B]
+     *  | none | _     | >>> [B]
+     *  | none | other | >>> [C]
      *  |------|-------|-----------------
-     *  | B = record bullet runs
-     *  | N = close the previous nodes and open the new node
-     *  | C = close all nodes when meet the end of line
+     *  | [B] = record bullet runs
+     *  | [N] = close the previous nodes and open the new node
+     *  | [C] = close all nodes when meet the end of line
      *  =================================
      */
 
     if (this.bulletCount && ch !== this.bulletChar) {
+      // [N]
       this.bulletFollowedChar = ch;
 
       // decide whether the delimiter run can open/close emphasis
@@ -172,33 +174,32 @@ export default class EmphasisBuilder extends BaseBuilder {
       this.bulletPrecededChar = ch;
     }
 
-    // update this record
-    if (!this.bulletCount && ch !== '*' && ch !== '_') {
+    // update this record [C]
+    if (!this.bulletCount && !isBulletChar) {
       this.bulletPrecededChar = ch;
     }
 
-    // if meet the end of line, just close the node.
+    // if meet the end of line, just close the node. [C]
     if (eol && (currentNode instanceof EmphasisNode)) {
       let parent = currentNode.parentNode;
       textifyNode(currentNode);
       currentNode = parent;
     }
 
-    if (ch === '*' || ch === '_') {
+    if (isBulletChar) {
+      // [B]
       if (this.bulletCount) {
-        // [TODO] 这个条件判断是必要的吗
         if (this.bulletChar === ch) this.bulletCount++;
       } else {
         this.bulletChar = ch;
         this.bulletCount = 1;
       }
-      return [
-        BUILD_MSG_TYPE.USE,
-        { type: BUILD_MSG_TYPE.OPEN_NODE, payload: currentNode },
-      ];
     }
 
-    return { type: BUILD_MSG_TYPE.OPEN_NODE, payload: currentNode };
+    return [
+      isBulletChar ? BUILD_MSG_TYPE.USE : undefined,
+      { type: BUILD_MSG_TYPE.OPEN_NODE, payload: currentNode },
+    ];
   }
 }
 

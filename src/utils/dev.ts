@@ -1,7 +1,7 @@
 import Node, { TextNode, Position } from "../nodes";
 import util from 'util';
 
-const inspectableProps = [/*'position'*/, 'innerData', 'bulletChar', 'bulletCount'];
+const inspectableProps = [/*'position'*/, 'innerData', 'bulletChar', 'bulletCount', 'title', 'dest'];
 
 export function inspectNodeTree(root: Node, expectedParentNode: Node = null) {
   const proto = Object.getPrototypeOf(root);

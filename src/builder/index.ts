@@ -11,6 +11,7 @@ import BaseBuilder, { BUILD_MSG_TYPE } from './_base';
 import TextBuilder from './text';
 import EmphasisBuilder from './emphasis';
 // import StrongBuilder from './strong';
+import LinkBuilder from './link';
 
 // interface Builder {
 //   update: (ch: string, point: Point) => any, // [TODO]
@@ -20,6 +21,7 @@ import EmphasisBuilder from './emphasis';
 const builders = new Map<string, typeof BaseBuilder>();
 // builders.set('paragraph', ParagraphBuilder);
 // builders.set('strong', StrongBuilder);
+builders.set('link', LinkBuilder);
 builders.set('emphasis', EmphasisBuilder);
 builders.set('text', TextBuilder);
 

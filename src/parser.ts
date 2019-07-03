@@ -23,6 +23,8 @@ export default function parseInline(src: string = '') {
   var tree = new RootNode(position);
   currentNode = tree;
 
+  const pointSaver: Point[] = [];
+
   // Initialize
   builds = initBuildList(builders);
 
@@ -118,6 +120,11 @@ export default function parseInline(src: string = '') {
             lastGiveUpBuildName = callRecord.name;
             break;
 
+          case BUILD_MSG_TYPE.REQUEST_CLOSE_NODE:
+            ch = '\0';
+            moveToNextPoint = false;
+            break;
+
           // terminate chain
           case BUILD_MSG_TYPE.TERMINATE:
             continueBuildChain = false;
@@ -126,6 +133,11 @@ export default function parseInline(src: string = '') {
           // pass to further chain
           case BUILD_MSG_TYPE.CONTINUE:
             continueBuildChain = true;
+            break;
+
+          case BUILD_MSG_TYPE.MOVE_TO:
+            setPoint(cmd.payload);
+            moveToNextPoint = false;
             break;
 
           // do nothing
