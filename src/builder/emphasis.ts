@@ -17,6 +17,8 @@ export default class EmphasisBuilder extends BaseBuilder {
     this.resetBullet();
   }
 
+  /* utils */
+
   private resetBullet() {
     this.bulletChar = '';
     this.bulletCount = 0;
@@ -51,29 +53,14 @@ export default class EmphasisBuilder extends BaseBuilder {
       );
   }
 
-  feed(ch: string, position: Position, currentNode: Node): BuildCmd {
-    const eol = ch === '\0';
-    const isBulletChar = ch === '*' || ch === '_';
+  isBulletChar(ch: string) {
+    return ch === '*' || ch === '_';
+  }
 
-    /** The input-action map table
-     *  =================================
-     *  |bullet| ch    | >>> actions
-     *  |------|-------|-----------------
-     *  | *    | *     | >>> [B]
-     *  | *    | _     | >>> [N] then [B]
-     *  | *    | other | >>> [N]
-     *  | _    | *     | >>> [N] then [B]
-     *  | _    | _     | >>> [B]
-     *  | _    | other | >>> [N]
-     *  | none | *     | >>> [B]
-     *  | none | _     | >>> [B]
-     *  | none | other | >>> [C]
-     *  |------|-------|-----------------
-     *  | [B] = record bullet runs
-     *  | [N] = close the previous nodes and open the new node
-     *  | [C] = close all nodes when meet the end of line
-     *  =================================
-     */
+  /* main */
+
+  preFeed(ch: string, position: Position, currentNode: Node): BuildCmd {
+    // const isBulletChar = this.isBulletChar(ch);
 
     if (this.bulletCount && ch !== this.bulletChar) {
       // [N]
@@ -173,6 +160,35 @@ export default class EmphasisBuilder extends BaseBuilder {
       this.resetBullet();
       this.bulletPrecededChar = ch;
     }
+
+    return [
+      { type: BUILD_MSG_TYPE.OPEN_NODE, payload: currentNode },
+    ];
+  }
+
+  feed(ch: string, position: Position, currentNode: Node): BuildCmd {
+    const eol = ch === '\0';
+    const isBulletChar = this.isBulletChar(ch);
+
+    /** The input-action map table
+     *  =================================
+     *  |bullet| ch    | >>> actions
+     *  |------|-------|-----------------
+     *  | *    | *     | >>> [B]
+     *  | *    | _     | >>> [N] then [B]
+     *  | *    | other | >>> [N]
+     *  | _    | *     | >>> [N] then [B]
+     *  | _    | _     | >>> [B]
+     *  | _    | other | >>> [N]
+     *  | none | *     | >>> [B]
+     *  | none | _     | >>> [B]
+     *  | none | other | >>> [C]
+     *  |------|-------|-----------------
+     *  | [B] = record bullet runs
+     *  | [N] = close the previous nodes and open the new node
+     *  | [C] = close all nodes when meet the end of line
+     *  =================================
+     */
 
     // update this record [C]
     if (!this.bulletCount && !isBulletChar) {

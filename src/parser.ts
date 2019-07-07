@@ -9,11 +9,21 @@ interface BuildItem {
   precedence: number;
   build: Builder;
   builder: any;
+  method?: string;
+}
+
+interface BuildMap {
+  [name: string]: Builder;
+}
+
+interface BuildCall {
+  id: string;
+  build: Builder;
+  method: string;
 }
 
 export default function parseInline(src: string = '') {
   let point: Point = new Point(1, 1, 0);
-  let builds: BuildItem[] = [];
   let currentNode: Node;
 
   // Initialize a build call stack
@@ -24,10 +34,17 @@ export default function parseInline(src: string = '') {
   var tree = new RootNode(position);
   currentNode = tree;
 
-  const pointSaver: Point[] = [];
+  const builds: BuildMap = {};
+  for (let [name, builder] of builders) {
+    builds[name] = new builder();
+  }
 
-  // Initialize
-  builds = initBuildList(builders);
+  const buildCalls: BuildCall[] = [
+    { id: 'emphasis_pre', build: builds.emphasis, method: 'preFeed' },
+    { id: 'link', build: builds.link, method: 'feed' },
+    { id: 'emphasis', build: builds.emphasis, method: 'feed' },
+    { id: 'text', build: builds.text, method: 'feed' },
+  ];
 
   setPoint(new Point(1, 1, 0));
 
@@ -50,47 +67,31 @@ export default function parseInline(src: string = '') {
     let skipTextBuild: boolean = false;
     let moveToNextPoint: boolean = true;
     let i = 0;
-    // console.log(callStack.stack.map(item => item.name));
-    // console.group('[feedChar] ', ch.replace('\n', '\\n'), position.start);
 
     // skip builds that have given up
-    for (; lastGiveUpBuildName && i < builds.length; i++) {
+    for (; lastGiveUpBuildName && i < buildCalls.length; i++) {
       if (builds[i].name === lastGiveUpBuildName) {
-        i++; break;
+        i++;
+        break;
       }
     }
 
-    for (; continueBuildChain && i < builds.length; i++) {
-      const item = builds[i];
-      if (skipTextBuild && item.name === 'text') continue;
+    for (; continueBuildChain && i < buildCalls.length; i++) {
+      const item = buildCalls[i];
+      if (skipTextBuild && item.id === 'text') continue;
 
-      const rst = item.build.feed(ch, position, currentNode);
+      const rst = item.build[item.method](ch, position, currentNode);
       const buildCmdList = rst ? (Array.isArray(rst) ? rst : [rst]) : [];
-      // console.log('feed', item.name, rst);
 
       for (let cmd of buildCmdList) {
         cmd = typeof cmd === 'object' ? cmd : { type: cmd };
 
         switch (cmd.type) {
-          // commit and open node
-          case BUILD_MSG_TYPE.COMMIT_AND_OPEN_NODE:
-            appendNodeAsLastChild(cmd.payload);
-            openLastChildNodeOfCurrentNode();
-            lastGiveUpBuildName = '';
-            break;
           case BUILD_MSG_TYPE.OPEN_NODE:
             openNode(cmd.payload);
             lastGiveUpBuildName = '';
             break;
-          // commit node
-          case BUILD_MSG_TYPE.COMMIT_NODE:
-            appendNodeAsLastChild(cmd.payload);
-            lastGiveUpBuildName = '';
-            // callStack.push(item.name, position);
-            break;
-          // case BUILD_MSG_TYPE.OPEN_NODE: openLastChildNodeOfCurrentNode(); break;
 
-          // close node
           case BUILD_MSG_TYPE.CLOSE_NODE:
             if (currentNode.parentNode) {
               currentNode = currentNode.parentNode;
@@ -101,7 +102,7 @@ export default function parseInline(src: string = '') {
 
           case BUILD_MSG_TYPE.USE:
             lastGiveUpBuildName = '';
-            callStack.push(item.name, position);
+            callStack.push(item.id, position);
             continueBuildChain = false;
             break;
 
@@ -153,13 +154,11 @@ export default function parseInline(src: string = '') {
           default:
             lastGiveUpBuildName = '';
         }
-        // console.groupEnd();
       }
     }
 
-    for (; i < builds.length; i++) {
-      // console.log('reset', item.name, rst);
-      const item = builds[i];
+    for (; i < buildCalls.length; i++) {
+      const item = buildCalls[i];
       const rst = item.build.reset(ch, position);
     }
 
@@ -187,26 +186,4 @@ export default function parseInline(src: string = '') {
       openNode(currentNode.children[currentNode.children.length - 1]);
     }
   }
-
-  function appendNodeAsLastChild(node: Node) {
-    if (currentNode instanceof Node) {
-      currentNode.appendChild(node);
-    } else {
-      return false;
-    }
-  }
-}
-
-function initBuildList(builderMap: Map<string, typeof Builder>) {
-  const buildList: BuildItem[] = [];
-
-  for (let [name, builder] of builderMap) {
-    buildList.push({
-      name,
-      builder,
-      build: new builder(),
-      precedence: 0,
-    });
-  }
-  return buildList;
 }
