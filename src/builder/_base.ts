@@ -35,6 +35,7 @@ export enum BUILD_MSG_TYPE {
   /* process control */
   TERMINATE = 'TERMINATE',
   CONTINUE = 'CONTINUE',
+  SKIP_TEXT = 'SKIP_TEXT',
   /* Errors */
   CLOSE_NODE_UNPAIRED = 'CLOSE_NODE_UNPAIRED',
 

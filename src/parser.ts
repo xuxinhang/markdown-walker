@@ -2,6 +2,7 @@ import Node, { RootNode } from './nodes';
 import { Position, Point, mergeNode } from './utils';
 import builders, { Builder, BUILD_MSG_TYPE } from './builder';
 import BuildCallStack from './utils/build-call-stack';
+import TextBuilder from './builder/text';
 
 interface BuildItem {
   name: string;
@@ -46,6 +47,7 @@ export default function parseInline(src: string = '') {
 
   function feedChar(ch: string, position: Position) {
     let continueBuildChain: boolean = true;
+    let skipTextBuild: boolean = false;
     let moveToNextPoint: boolean = true;
     let i = 0;
     // console.log(callStack.stack.map(item => item.name));
@@ -60,6 +62,8 @@ export default function parseInline(src: string = '') {
 
     for (; continueBuildChain && i < builds.length; i++) {
       const item = builds[i];
+      if (skipTextBuild && item.name === 'text') continue;
+
       const rst = item.build.feed(ch, position, currentNode);
       const buildCmdList = rst ? (Array.isArray(rst) ? rst : [rst]) : [];
       // console.log('feed', item.name, rst);
@@ -107,6 +111,10 @@ export default function parseInline(src: string = '') {
             moveToNextPoint = false;
             lastGiveUpBuildName = callRecord.name;
             continueBuildChain = false;
+            break;
+
+          case BUILD_MSG_TYPE.SKIP_TEXT:
+            skipTextBuild = true;
             break;
 
           case BUILD_MSG_TYPE.CLOSE_NODE_UNPAIRED:

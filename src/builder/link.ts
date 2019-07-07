@@ -32,6 +32,11 @@ export default class LinkBuilder extends BaseBuilder {
 
     if (this.processInline) {
       const currentOffset = position.start.offset;
+
+      if (currentOffset < this.startBracketOffset) {
+        return undefined; // do nothing
+      }
+
       if (currentOffset === this.startBracketOffset) {
         const node = this.nodeToAppend;
         currentNode.appendChild(node);
@@ -58,11 +63,17 @@ export default class LinkBuilder extends BaseBuilder {
 
       if (currentOffset > this.endBracketOffset) {
         this.processInline = false;
+        this.scanningStructure = false;
         return BUILD_MSG_TYPE.USE;
       }
 
     } else {
       if (this.scanningStructure) {
+        if (ch === '[') {
+          this.bracketStack.push(position.start.offset);
+          return BUILD_MSG_TYPE.SKIP_TEXT;
+        }
+
         if (ch === ']') {
           this.expectOpenParen = true;
           return BUILD_MSG_TYPE.USE;
@@ -113,28 +124,9 @@ export default class LinkBuilder extends BaseBuilder {
         this.scanningStructure = true;
         this.bracketStack.push(position.start.offset);
         this.scanStartPoint = position.start;
-        return [
-          BUILD_MSG_TYPE.USE,
-          // { type: BUILD_MSG_TYPE.OPEN_NODE, payload: node },
-        ];
+        return BUILD_MSG_TYPE.SKIP_TEXT;
       }
     }
-
-    /* if (ch === ']') {
-      const parent = currentNode.parentNode;
-      this.expectOpenParen = true;
-      // return { type: BUILD_MSG_TYPE.OPEN_NODE, payload: parent };
-    }
-
-    if (this.expectOpenParen) {
-      if (ch === '(') {
-        this.scanningParenContent = true;
-        return BUILD_MSG_TYPE.USE;
-      } else {
-        //
-        this.expectOpenParen = false;
-      }
-    } */
   }
 }
 
