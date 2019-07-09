@@ -9,10 +9,19 @@ export default function render(root) {
   }
 
   let accu = '';
-  accu += openTag;
+  if (root.type === 'link') {
+    accu += '<a';
+    accu += ` href="${encodeURI(root.dest)}"`;
+    accu += root.title ? ` title="${root.title}"` : '';
+    accu += '>';
+  } else {
+    accu += openTag;
+  }
+
   for (let node of root.children) {
     accu += render(node);
   }
+
   accu += closeTag;
 
   return accu;
@@ -21,5 +30,6 @@ export default function render(root) {
 const tags = {
   emphasis: ['<em>', '</em>'],
   strong: ['<strong>', '</strong>'],
+  link: ['<a>', '</a>'],
   root: ['<p>', '</p>\n'],
 };
