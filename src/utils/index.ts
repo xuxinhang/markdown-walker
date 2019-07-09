@@ -110,3 +110,11 @@ export function isPunctuationChar(str: string) {
   return isASCIIPunctuationChar(str);
 }
 
+export function isASCIIControlChar(str: string) {
+  const c = str.charCodeAt(0);
+  return c <= 31 || c === 127;
+}
+
+export function isASCIISpace(str: string) {
+  return str === ' ';
+}
