@@ -51,14 +51,14 @@ export default function parseInline(src: string = '') {
   // feed each char one by one
   while (point.offset >= 0) {
     const ch = src.charAt(point.offset);
-    if (!ch) break;
-    feedChar(ch, position);
+    if (ch) {
+      feedChar(ch, position);
+    } else {
+      // feed NULL character as end mark until all nodes are closed
+      feedChar('\0', position);
+      if (currentNode instanceof RootNode) break;
+    }
   }
-
-  // feed NULL character as end mark until all nodes are closed
-  do {
-    feedChar('\0', position);
-  } while (!(currentNode instanceof RootNode));
 
   return tree;
 
