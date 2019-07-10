@@ -15,7 +15,9 @@ export function inspectNodeTree(root: Node, expectedParentNode: Node = null) {
 
   first += `\x1b[44;37m${className} ${root.type}\x1b[0m `;
   first += expectedParentNode && root.parentNode !== expectedParentNode ? '\x1b[41;37mWRONG_PARENT\x1b[0m ' : ' ';
-  if (root instanceof TextNode) first += util.formatWithOptions({ colors: true }, '%O', root.value);
+  if (root instanceof TextNode) {
+    first += `\x1b[32m“${root.value}”\x1b[0m`;
+  }
   // first += root.position;
 
   const otherProps = Object.entries(root).reduce((accu, [key, value]) => {
