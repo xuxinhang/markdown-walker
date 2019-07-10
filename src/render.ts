@@ -5,14 +5,14 @@ export default function render(root) {
   const closeTag = tagPair ? tagPair[1] : '';
 
   if (root.type === 'text') {
-    return root.value;
+    return replaceEntityChars(root.value);
   }
 
   let accu = '';
   if (root.type === 'link') {
     accu += '<a';
     accu += ` href="${encodeURI(root.dest)}"`;
-    accu += root.title ? ` title="${root.title}"` : '';
+    accu += root.title ? ` title="${replaceEntityChars(root.title)}"` : '';
     accu += '>';
   } else {
     accu += openTag;
@@ -33,3 +33,10 @@ const tags = {
   link: ['<a>', '</a>'],
   root: ['<p>', '</p>\n'],
 };
+
+function replaceEntityChars(s: string): string {
+  return s.replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}

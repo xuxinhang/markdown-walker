@@ -37,10 +37,11 @@ export default class LinkBuilder extends BaseBuilder {
 
   // for parsing functions
   private linkDest: string = '';
-  private linkDestPointy: boolean = false;
+  private linkDestPointy: string = undefined;
+  private linkDestClosed: boolean = false;
   private linkDestParenthesisLevel: number = 0;
   private linkTitle: string = '';
-  private linkTitleType: string = '';
+  private linkTitleType: string = undefined;
   private linkTitleClosed: boolean = false;
 
 
@@ -51,10 +52,11 @@ export default class LinkBuilder extends BaseBuilder {
 
   private resetInnerState() {
     this.linkDest = '';
-    this.linkDestPointy = false;
+    this.linkDestPointy = undefined;
     this.linkDestParenthesisLevel = 0;
+    this.linkDestClosed = false;
     this.linkTitle = '';
-    this.linkTitleType = '';
+    this.linkTitleType = undefined;
     this.linkTitleClosed = false;
   }
 
@@ -111,7 +113,17 @@ export default class LinkBuilder extends BaseBuilder {
           this.bracketStack.pop();
           if (this.bracketStack.length === 0) {
             matchFailMark = true;
-            // return { type: BUILD_MSG_TYPE.MOVE_TO, payload: this.scanStartPoint };
+            break;
+          }
+
+          this.scanState = ScanState.Label;
+          if (ch === '[') {
+            this.bracketStack.push(position.start.offset);
+            return BUILD_MSG_TYPE.SKIP_TEXT;
+          } else if (ch === ']') {
+            this.scanState = ScanState.EndBracket;
+            this.endBracketOffset = position.start.offset;
+            return BUILD_MSG_TYPE.USE;
           }
         }
         break;
@@ -132,22 +144,19 @@ export default class LinkBuilder extends BaseBuilder {
           this.scanState = ScanState.EndParenthesis;
         } else if (!isWhitespaceChar(ch)) {
           this.scanState = ScanState.Dest;
+          // assert this call doesn't return false (meeting an error)
           this.parseLinkDest(ch);
         }
         break;
       case ScanState.Dest:
-        if (this.linkDestParenthesisLevel === 0 && ch === ')') {
-          this.scanState = ScanState.EndParenthesis;
-        }
-
         var ok = this.parseLinkDest(ch);
         if (ok === false) {
           if (isWhitespaceChar(ch)) {
             this.scanState = ScanState.SpacesBetween;
-          }
-        } else if (ok === true) {
-          if (isWhitespaceChar(ch)) {
-            this.scanState = ScanState.SpacesBetween;
+          } else if (ch === ')') {
+            this.scanState = ScanState.EndParenthesis;
+          } else {
+            matchFailMark = true;
           }
         }
         break;
@@ -156,11 +165,13 @@ export default class LinkBuilder extends BaseBuilder {
           this.scanState = ScanState.EndParenthesis;
         } else if (!isWhitespaceChar(ch)) {
           this.scanState = ScanState.Title;
-          this.parseLinkTitle(ch);
+          const ok = this.parseLinkTitle(ch);
+          if (ok === false) matchFailMark = true;
         }
         break;
       case ScanState.Title:
-        if (this.linkTitleClosed) {
+        var ok = this.parseLinkTitle(ch);
+        if (!ok) {
           if (ch === ')') {
             this.scanState = ScanState.EndParenthesis;
           } else if (isWhitespaceChar(ch)) {
@@ -168,9 +179,6 @@ export default class LinkBuilder extends BaseBuilder {
           } else {
             matchFailMark = true;
           }
-        } else {
-          var ok = this.parseLinkTitle(ch);
-          if (ok === true) this.linkTitleClosed = true;
         }
         break;
       case ScanState.SpacesBeforeEndParenthesis:
@@ -271,58 +279,68 @@ export default class LinkBuilder extends BaseBuilder {
     }
   }
 
+  /**
+   * accept a single char in link dest and returns the next parsing result
+   * @param ch the input character
+   * @returns {boolean} whether d (=true) or  (=false)
+   *
+   * returns true when ch is acceptable
+   * returns false when ch is an illegal character
+   */
   parseLinkDest(ch: string): boolean {
-    if (this.linkDest === '') {
+    if (this.linkDestClosed) return false;
+
+    if (this.linkDest === '' && this.linkDestPointy === undefined) {
       if (ch === '<') {
-        this.linkDestPointy = true;
-        return undefined;
+        this.linkDestPointy = '<';
+        return true;
+      } else {
+        this.linkDest = ch;
+        this.linkDestPointy = '';
+        return true;
       }
     }
 
-    if (this.linkDestPointy && false) {
-
-    } else {
-      if (isASCIISpace(ch) || isASCIIControlChar(ch)) {
-        if (this.linkDestParenthesisLevel) {
-          return true;
-        } else {
-          return false;
-        }
-      } else if (ch === '(') {
-        this.linkDestParenthesisLevel++;
-      } else if (ch === ')') {
-        if (this.linkDestParenthesisLevel === 0) {
-          return true;
-        } else {
-          this.linkDestParenthesisLevel--;
-        }
+    if (this.linkDestPointy === '<') {
+      if (ch === '>') {
+        this.linkDestClosed = true;
+        return true;
       }
+      if (ch === '\n') return false; // [TODO]
       this.linkDest += ch;
+      return true;
     }
 
-    return undefined;
+    // the link dest with no pointy-style
+    if (isASCIISpace(ch) || isASCIIControlChar(ch)) {
+      return this.linkDestParenthesisLevel ? true : false;
+    } else if (ch === '(') {
+      this.linkDestParenthesisLevel++;
+    } else if (ch === ')') {
+      if (this.linkDestParenthesisLevel === 0) return false;
+      this.linkDestParenthesisLevel--;
+    }
+    this.linkDest += ch;
+    return true;
   }
 
   parseLinkTitle(ch: string): boolean {
-    if (this.linkTitle === '' && this.linkTitleType === '') {
+    if (this.linkTitleClosed) return false;
+
+    if (this.linkTitle === '' && this.linkTitleType === undefined) {
       if (ch !== '(' && ch !== '"' && ch !== '\'') return false;
       this.linkTitleType = ch;
-      return undefined;
-    } else {
-      switch (this.linkTitleType) {
-        case '"':
-          if (ch === '"') return true;
-          break;
-        case '\'':
-          if (ch === '\'') return true;
-          break;
-        case '(':
-          if (ch === ')') return true;
-          break;
-      }
-      this.linkTitle += ch;
-      return undefined;
+      return true;
     }
+
+    const pre = this.linkTitleType;
+    if (pre === '"' && ch === '"' || pre === '\'' && ch === '\'' || pre === '(' && ch === ')') {
+      this.linkTitleClosed = true;
+      return true;
+    }
+
+    this.linkTitle += ch;
+    return true;
   }
 }
 
