@@ -17,14 +17,17 @@ export default class TextBuilder extends BaseBuilder {
   feed(ch: string, position: Position, currentNode: Node) {
     // ignore control characters
     // if (ch === '\n' || ch === '\r' || ch === '\u0002' || ch === '\u0003' || ch === '\0') return;
-    if (ch === '\0') return;
+    let text: string;
 
     if (ch === '\\' && !this.backslashEscapeActive) {
       this.backslashEscapeActive = true;
       return;
     }
 
-    let text: string;
+    if (ch === '\0') {
+      return { type: BUILD_MSG_TYPE.OPEN_NODE, payload: currentNode.parentNode };
+    }
+
     if (this.backslashEscapeActive) {
       text = isASCIIPunctuationChar(ch) ? ch : `\\${ch}`;
       this.backslashEscapeActive = false;

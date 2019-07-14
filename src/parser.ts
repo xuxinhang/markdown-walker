@@ -43,6 +43,7 @@ export default function parseInline(src: string = '') {
     { id: 'emphasis_pre', build: builds.emphasis, method: 'preFeed' },
     { id: 'link', build: builds.link, method: 'feed' },
     { id: 'emphasis', build: builds.emphasis, method: 'feed' },
+    { id: 'entity', build: builds.entity, method: 'feed' },
     { id: 'text', build: builds.text, method: 'feed' },
   ];
 
@@ -56,7 +57,7 @@ export default function parseInline(src: string = '') {
     } else {
       // feed NULL character as end mark until all nodes are closed
       feedChar('\0', position);
-      if (currentNode instanceof RootNode) break;
+      if (currentNode === null) break;
     }
   }
 
