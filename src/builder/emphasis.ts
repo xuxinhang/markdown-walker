@@ -199,7 +199,10 @@ export default class EmphasisBuilder extends BaseBuilder {
     if (eol && (currentNode instanceof EmphasisNode)) {
       let parent = currentNode.parentNode;
       textifyNode(currentNode);
-      currentNode = parent;
+      return [
+        BUILD_MSG_TYPE.USE, // vital for nested emphasis nodes.
+        { type: BUILD_MSG_TYPE.OPEN_NODE, payload: parent }
+      ];
     }
 
     if (isBulletChar) {
