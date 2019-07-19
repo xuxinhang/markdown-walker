@@ -1,5 +1,5 @@
 import BaseBuilder, { BUILD_MSG_TYPE } from './_base';
-import { Point, Position, isASCIIPunctuationChar } from '../utils';
+import { Point, Position, isEscapableChar } from '../utils';
 import Node, { TextNode } from '../nodes';
 
 export default class TextBuilder extends BaseBuilder {
@@ -25,11 +25,12 @@ export default class TextBuilder extends BaseBuilder {
     }
 
     if (ch === '\0') {
-      return { type: BUILD_MSG_TYPE.OPEN_NODE, payload: currentNode.parentNode };
+      return BUILD_MSG_TYPE.END;
+      // return { type: BUILD_MSG_TYPE.OPEN_NODE, payload: currentNode.parentNode };
     }
 
     if (this.backslashEscapeActive) {
-      text = isASCIIPunctuationChar(ch) ? ch : `\\${ch}`;
+      text = isEscapableChar(ch) ? ch : `\\${ch}`;
       this.backslashEscapeActive = false;
     } else {
       text = ch;

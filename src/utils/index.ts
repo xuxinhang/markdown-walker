@@ -115,6 +115,10 @@ export function isASCIIControlChar(str: string) {
   return c <= 31 || c === 127;
 }
 
-export function isASCIISpace(str: string) {
+export function isASCIISpace(str: string): boolean {
   return str === ' ';
+}
+
+export function isEscapableChar(c: string): boolean {
+  return isASCIIPunctuationChar(c);
 }

@@ -1,5 +1,5 @@
 import BaseBuilder, { BuildCmd } from "./_base";
-import { Position, Point, isASCIISpace, isASCIIControlChar, isWhitespaceChar } from "../utils";
+import { Position, Point, isASCIISpace, isASCIIControlChar, isWhitespaceChar, isEscapableChar } from "../utils";
 import Node, { LinkNode } from "../nodes";
 import { BUILD_MSG_TYPE } from ".";
 
@@ -43,6 +43,7 @@ export default class LinkBuilder extends BaseBuilder {
   private linkTitle: string = '';
   private linkTitleType: string = undefined;
   private linkTitleClosed: boolean = false;
+  private backslashEscapeActive: boolean = false;
 
 
   constructor() {
@@ -58,9 +59,10 @@ export default class LinkBuilder extends BaseBuilder {
     this.linkTitle = '';
     this.linkTitleType = undefined;
     this.linkTitleClosed = false;
+    this.backslashEscapeActive = false;
   }
 
-  feed(ch: string, position: Position, currentNode: Node): BuildCmd {
+  feed(ch: string, position: Position, currentNode: Node, innerEnd: boolean): BuildCmd {
     // It's necessary to scan ahead the string to determinate whether it is a valid link node,
     // because builders need to re-run from the beginning after finding the previously created
     // node invalid, which might cause redundant parsing process.
@@ -74,7 +76,7 @@ export default class LinkBuilder extends BaseBuilder {
     }
 
     if (this.processingLabel) {
-      return this.processLabel(ch, position, currentNode);
+      return this.processLabel(ch, position, currentNode, innerEnd);
     }
 
     if (this.scanningStructure) {
@@ -93,102 +95,113 @@ export default class LinkBuilder extends BaseBuilder {
   scan(ch: string, position: Position, currentNode: Node): BuildCmd {
     let matchFailMark: boolean = false;
 
-    switch (this.scanState) {
-      case ScanState.Label:
-        if (ch === '[') {
-          this.bracketStack.push(position.start.offset);
-          return BUILD_MSG_TYPE.SKIP_TEXT;
-        } else if (ch === ']') {
-          this.scanState = ScanState.EndBracket;
-          this.endBracketOffset = position.start.offset;
-          return BUILD_MSG_TYPE.USE;
-        }
-        break;
-      case ScanState.EndBracket:
-        if (ch === '(') {
-          this.scanState = ScanState.StartParenthesis;
-          this.startBracketOffset = this.bracketStack.pop();
-        } else {
-          // [TODO] view the right bracket as a simple char
-          this.bracketStack.pop();
-          if (this.bracketStack.length === 0) {
-            matchFailMark = true;
-            break;
+    if (ch === '\0' && this.scanState !== ScanState.None) {
+      matchFailMark = true;
+    } else {
+      switch (this.scanState) {
+        case ScanState.Label:
+          if (ch === '\\' && !this.backslashEscapeActive) {
+            this.backslashEscapeActive = true;
+            return BUILD_MSG_TYPE.USE;
           }
 
-          this.scanState = ScanState.Label;
-          if (ch === '[') {
+          if (ch === '[' && !this.backslashEscapeActive) {
             this.bracketStack.push(position.start.offset);
-            return BUILD_MSG_TYPE.SKIP_TEXT;
-          } else if (ch === ']') {
+            return BUILD_MSG_TYPE.USE;
+          } else if (ch === ']' && !this.backslashEscapeActive) {
             this.scanState = ScanState.EndBracket;
             this.endBracketOffset = position.start.offset;
             return BUILD_MSG_TYPE.USE;
           }
-        }
-        break;
-      case ScanState.StartParenthesis:
-        if (isWhitespaceChar(ch)) {
-          this.scanState = ScanState.SpacesAfterStartParenthesis;
-        } else if (ch === ')') {
-          this.scanState = ScanState.EndParenthesis;
-        } else {
-          this.scanState = ScanState.Dest;
-          if (this.parseLinkDest(ch) === false) {
-            matchFailMark = true;
+
+          this.backslashEscapeActive = false;
+          break;
+        case ScanState.EndBracket:
+          if (ch === '(') {
+            this.scanState = ScanState.StartParenthesis;
+            this.startBracketOffset = this.bracketStack.pop();
+          } else {
+            // [TODO] view the right bracket as a simple char
+            this.bracketStack.pop();
+            if (this.bracketStack.length === 0) {
+              matchFailMark = true;
+              break;
+            }
+
+            this.scanState = ScanState.Label;
+            if (ch === '[') {
+              this.bracketStack.push(position.start.offset);
+              return BUILD_MSG_TYPE.SKIP_TEXT;
+            } else if (ch === ']') {
+              this.scanState = ScanState.EndBracket;
+              this.endBracketOffset = position.start.offset;
+              return BUILD_MSG_TYPE.USE;
+            }
           }
-        }
-        break;
-      case ScanState.SpacesAfterStartParenthesis:
-        if (ch === ')') {
-          this.scanState = ScanState.EndParenthesis;
-        } else if (!isWhitespaceChar(ch)) {
-          this.scanState = ScanState.Dest;
-          // assert this call doesn't return false (meeting an error)
-          this.parseLinkDest(ch);
-        }
-        break;
-      case ScanState.Dest:
-        var ok = this.parseLinkDest(ch);
-        if (ok === false) {
+          break;
+        case ScanState.StartParenthesis:
           if (isWhitespaceChar(ch)) {
-            this.scanState = ScanState.SpacesBetween;
+            this.scanState = ScanState.SpacesAfterStartParenthesis;
           } else if (ch === ')') {
             this.scanState = ScanState.EndParenthesis;
           } else {
-            matchFailMark = true;
+            this.scanState = ScanState.Dest;
+            if (this.parseLinkDest(ch) === false) {
+              matchFailMark = true;
+            }
           }
-        }
-        break;
-      case ScanState.SpacesBetween:
-        if (ch === ')') {
-          this.scanState = ScanState.EndParenthesis;
-        } else if (!isWhitespaceChar(ch)) {
-          this.scanState = ScanState.Title;
-          const ok = this.parseLinkTitle(ch);
-          if (ok === false) matchFailMark = true;
-        }
-        break;
-      case ScanState.Title:
-        var ok = this.parseLinkTitle(ch);
-        if (!ok) {
+          break;
+        case ScanState.SpacesAfterStartParenthesis:
           if (ch === ')') {
             this.scanState = ScanState.EndParenthesis;
-          } else if (isWhitespaceChar(ch)) {
-            this.scanState = ScanState.SpacesBeforeEndParenthesis;
-          } else {
+          } else if (!isWhitespaceChar(ch)) {
+            this.scanState = ScanState.Dest;
+            // assert this call doesn't return false (meeting an error)
+            this.parseLinkDest(ch);
+          }
+          break;
+        case ScanState.Dest:
+          var ok = this.parseLinkDest(ch);
+          if (!ok) {
+            if (isWhitespaceChar(ch)) {
+              this.scanState = ScanState.SpacesBetween;
+            } else if (ch === ')') {
+              this.scanState = ScanState.EndParenthesis;
+            } else {
+              matchFailMark = true;
+            }
+          }
+          break;
+        case ScanState.SpacesBetween:
+          if (ch === ')') {
+            this.scanState = ScanState.EndParenthesis;
+          } else if (!isWhitespaceChar(ch)) {
+            this.scanState = ScanState.Title;
+            const ok = this.parseLinkTitle(ch);
+            if (ok === false) matchFailMark = true;
+          }
+          break;
+        case ScanState.Title:
+          var ok = this.parseLinkTitle(ch);
+          if (!ok) {
+            if (ch === ')') {
+              this.scanState = ScanState.EndParenthesis;
+            } else if (isWhitespaceChar(ch)) {
+              this.scanState = ScanState.SpacesBeforeEndParenthesis;
+            } else {
+              matchFailMark = true;
+            }
+          }
+          break;
+        case ScanState.SpacesBeforeEndParenthesis:
+          if (ch === ')') {
+            this.scanState = ScanState.EndParenthesis;
+          } else if (!isWhitespaceChar(ch)) {
             matchFailMark = true;
           }
-        }
-        break;
-      case ScanState.SpacesBeforeEndParenthesis:
-        if (ch === ')') {
-          this.scanState = ScanState.EndParenthesis;
-        } else if (!isWhitespaceChar(ch)) {
-          matchFailMark = true;
-        }
-        break;
-      default:
+          break;
+        default:
+      }
     }
 
     if (matchFailMark) {
@@ -221,27 +234,9 @@ export default class LinkBuilder extends BaseBuilder {
     }
 
     return BUILD_MSG_TYPE.USE;
-
-    /* if (this.scanState >= ScanState.StartParenthesis) {
-      if (ch === ')') {
-        // parse meta content
-        const node = new LinkNode(position);
-        node.dest = this.metaContent;
-        this.nodeToAppend = node;
-        this.processingLabel = true;
-        this.scanEndPoint = position.start;
-        return [
-          BUILD_MSG_TYPE.USE,
-          { type: BUILD_MSG_TYPE.MOVE_TO, payload: this.scanStartPoint },
-        ];
-      } else {
-        this.metaContent += ch;
-        return BUILD_MSG_TYPE.USE;
-      }
-    } */
   }
 
-  processLabel(ch: string, position: Position, currentNode: Node): BuildCmd {
+  processLabel(ch: string, position: Position, currentNode: Node, innerEnd: boolean): BuildCmd {
     const currentOffset = position.start.offset;
 
     if (currentOffset < this.startBracketOffset) {
@@ -259,9 +254,10 @@ export default class LinkBuilder extends BaseBuilder {
     }
 
     if (currentOffset === this.endBracketOffset) {
-      if (currentNode === this.activeNode) {
+      if (currentNode === this.activeNode && innerEnd) {
         return [
           BUILD_MSG_TYPE.USE,
+          BUILD_MSG_TYPE.START,
           { type: BUILD_MSG_TYPE.OPEN_NODE, payload: currentNode.parentNode },
           { type: BUILD_MSG_TYPE.MOVE_TO, payload: this.scanEndPoint },
         ];
@@ -295,32 +291,37 @@ export default class LinkBuilder extends BaseBuilder {
         this.linkDestPointy = '<';
         return true;
       } else {
-        this.linkDest = ch;
         this.linkDestPointy = '';
-        return true;
       }
     }
 
+    if (ch === '\\' && !this.backslashEscapeActive) {
+      this.backslashEscapeActive = true;
+      return true;
+    }
+
     if (this.linkDestPointy === '<') {
-      if (ch === '>') {
+      if (ch === '>' && !this.backslashEscapeActive) {
         this.linkDestClosed = true;
         return true;
       }
       if (ch === '\n') return false; // [TODO]
-      this.linkDest += ch;
+      this.linkDest += this.backslashEscapeActive && !isEscapableChar(ch) ? '\\' : '' + ch;
+      this.backslashEscapeActive = false;
       return true;
     }
 
     // the link dest with no pointy-style
     if (isASCIISpace(ch) || isASCIIControlChar(ch)) {
       return this.linkDestParenthesisLevel ? true : false;
-    } else if (ch === '(') {
+    } else if (ch === '(' && !this.backslashEscapeActive) {
       this.linkDestParenthesisLevel++;
-    } else if (ch === ')') {
+    } else if (ch === ')' && !this.backslashEscapeActive) {
       if (this.linkDestParenthesisLevel === 0) return false;
       this.linkDestParenthesisLevel--;
     }
-    this.linkDest += ch;
+    this.linkDest += (this.backslashEscapeActive && !isEscapableChar(ch) ? '\\' : '') + ch;
+    this.backslashEscapeActive = false;
     return true;
   }
 
@@ -333,13 +334,25 @@ export default class LinkBuilder extends BaseBuilder {
       return true;
     }
 
+    if (ch === '\\' && !this.backslashEscapeActive) {
+      this.backslashEscapeActive = true;
+      return true;
+    }
+
     const pre = this.linkTitleType;
-    if (pre === '"' && ch === '"' || pre === '\'' && ch === '\'' || pre === '(' && ch === ')') {
+    if (!this.backslashEscapeActive &&
+      (pre === '"' && ch === '"' || pre === '\'' && ch === '\'' || pre === '(' && ch === ')')
+    ) {
       this.linkTitleClosed = true;
       return true;
     }
 
-    this.linkTitle += ch;
+    if (pre === '(' && ch === '(' && !this.backslashEscapeActive) {
+      return false;
+    }
+
+    this.linkTitle += (this.backslashEscapeActive && !isEscapableChar(ch) ? '\\' : '') + ch;
+    this.backslashEscapeActive = false;
     return true;
   }
 }

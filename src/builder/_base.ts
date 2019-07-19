@@ -4,7 +4,7 @@ import Node from '../nodes';
 export default class BaseBuilder {
   [props: string]: any;
 
-  feed(ch: string, position: Position, currentNode?: Node): (BuildCmd) {
+  feed(ch: string, position: Position, currentNode?: Node, innerEnd?: boolean): (BuildCmd) {
     return { type: BUILD_MSG_TYPE.NONE };
   }
 
@@ -47,6 +47,9 @@ export enum BUILD_MSG_TYPE {
   REQUEST_CLOSE_NODE = 'REQUEST_CLOSE_NODE',
   // SAVE_POINT = 'SAVE_POINT',
   // RESTORE_POINT = 'RESTORE_POINT',
+
+  END = 'END',
+  START = 'START',
 }
 
 export interface BuildCmdObject {

@@ -25,6 +25,7 @@ interface BuildCall {
 export default function parseInline(src: string = '') {
   let point: Point = new Point(1, 1, 0);
   let currentNode: Node;
+  let endFlag: boolean = false;
 
   // Initialize a build call stack
   const callStack = new BuildCallStack();
@@ -57,7 +58,9 @@ export default function parseInline(src: string = '') {
     } else {
       // feed NULL character as end mark until all nodes are closed
       feedChar('\0', position);
-      if (currentNode === null) break;
+      if (endFlag) { // && (currentNode instanceof RootNode)) {
+        break;
+      }
     }
   }
 
@@ -81,7 +84,7 @@ export default function parseInline(src: string = '') {
       const item = buildCalls[i];
       if (skipTextBuild && item.id === 'text') continue;
 
-      const rst = item.build[item.method](ch, position, currentNode);
+      const rst = item.build[item.method](ch, position, currentNode, endFlag);
       const buildCmdList = rst ? (Array.isArray(rst) ? rst : [rst]) : [];
 
       for (let cmd of buildCmdList) {
@@ -148,6 +151,13 @@ export default function parseInline(src: string = '') {
           case BUILD_MSG_TYPE.MOVE_TO:
             setPoint(cmd.payload);
             moveToNextPoint = false;
+            break;
+
+          case BUILD_MSG_TYPE.END:
+            endFlag = true;
+            break;
+          case BUILD_MSG_TYPE.START:
+            endFlag = false;
             break;
 
           // do nothing
