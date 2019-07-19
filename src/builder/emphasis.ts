@@ -12,6 +12,8 @@ export default class EmphasisBuilder extends BaseBuilder {
   private bulletPrecededChar: string = '';
   private bulletFollowedChar: string = '';
 
+  private backslashEscapeActive: boolean = false;
+
   constructor() {
     super();
     this.resetBullet();
@@ -60,8 +62,6 @@ export default class EmphasisBuilder extends BaseBuilder {
   /* main */
 
   preFeed(ch: string, position: Position, currentNode: Node): BuildCmd {
-    // const isBulletChar = this.isBulletChar(ch);
-
     if (this.bulletCount && ch !== this.bulletChar) {
       // [N]
       this.bulletFollowedChar = ch;
@@ -167,8 +167,13 @@ export default class EmphasisBuilder extends BaseBuilder {
   }
 
   feed(ch: string, position: Position, currentNode: Node): BuildCmd {
+    if (ch === '\\' && !this.backslashEscapeActive) {
+      this.backslashEscapeActive = true;
+      return;
+    }
+
     const eol = ch === '\0';
-    const isBulletChar = this.isBulletChar(ch);
+    const isFunctionalBulletChar = this.isBulletChar(ch) && !this.backslashEscapeActive;
 
     /** The input-action map table
      *  =================================
@@ -182,16 +187,17 @@ export default class EmphasisBuilder extends BaseBuilder {
      *  | _    | other | >>> [N]
      *  | none | *     | >>> [B]
      *  | none | _     | >>> [B]
-     *  | none | other | >>> [C]
+     *  | none | other | >>> [C] (when meet the end of line)
      *  |------|-------|-----------------
      *  | [B] = record bullet runs
-     *  | [N] = close the previous nodes and open the new node
-     *  | [C] = close all nodes when meet the end of line
+     *  | [N] = close the previous nodes and open the new node if necessary
+     *  |       (located in preFeed method)
+     *  | [C] = close all nodes
      *  =================================
      */
 
     // update this record [C]
-    if (!this.bulletCount && !isBulletChar) {
+    if (!this.bulletCount && !isFunctionalBulletChar) {
       this.bulletPrecededChar = ch;
     }
 
@@ -205,7 +211,7 @@ export default class EmphasisBuilder extends BaseBuilder {
       ];
     }
 
-    if (isBulletChar) {
+    if (isFunctionalBulletChar && !this.backslashEscapeActive) {
       // [B]
       if (this.bulletCount) {
         if (this.bulletChar === ch) this.bulletCount++;
@@ -213,10 +219,15 @@ export default class EmphasisBuilder extends BaseBuilder {
         this.bulletChar = ch;
         this.bulletCount = 1;
       }
+
+      return [
+        BUILD_MSG_TYPE.USE,
+        { type: BUILD_MSG_TYPE.OPEN_NODE, payload: currentNode },
+      ];
     }
 
+    this.backslashEscapeActive = false;
     return [
-      isBulletChar ? BUILD_MSG_TYPE.USE : undefined,
       { type: BUILD_MSG_TYPE.OPEN_NODE, payload: currentNode },
     ];
   }
