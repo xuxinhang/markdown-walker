@@ -42,6 +42,7 @@ export default function parseInline(src: string = '') {
 
   const buildCalls: BuildCall[] = [
     { id: 'emphasis_pre', build: builds.emphasis, method: 'preFeed' },
+    { id: 'code_span', build: builds.code_span, method: 'feed' },
     { id: 'link', build: builds.link, method: 'feed' },
     { id: 'emphasis', build: builds.emphasis, method: 'feed' },
     { id: 'entity', build: builds.entity, method: 'feed' },

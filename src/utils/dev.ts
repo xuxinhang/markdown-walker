@@ -1,4 +1,4 @@
-import Node, { TextNode, Position } from "../nodes";
+import Node, { TextNode, Position, CodeSpanNode } from "../nodes";
 import util from 'util';
 
 const inspectableProps = [/*'position'*/, 'innerData', 'bulletChar', 'bulletCount', 'title', 'dest'];
@@ -16,6 +16,9 @@ export function inspectNodeTree(root: Node, expectedParentNode: Node = null) {
   first += `\x1b[44;37m${className} ${root.type}\x1b[0m `;
   first += expectedParentNode && root.parentNode !== expectedParentNode ? '\x1b[41;37mWRONG_PARENT\x1b[0m ' : ' ';
   if (root instanceof TextNode) {
+    first += `\x1b[32m“${root.value}”\x1b[0m`;
+  }
+  if (root instanceof CodeSpanNode) {
     first += `\x1b[32m“${root.value}”\x1b[0m`;
   }
   // first += root.position;

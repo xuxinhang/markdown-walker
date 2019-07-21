@@ -194,5 +194,13 @@ export class LinkNode extends Node {
   title: string = '';
 }
 
+export class CodeSpanNode extends Node {
+  constructor(position: Position, value: string = '') {
+    super('codeSpan', position);
+    this.value = value;
+  }
+  value: string = '';
+}
+
 export default Node;
 export { Position, Point };

@@ -18,6 +18,10 @@ export default function render(root) {
     accu += openTag;
   }
 
+  if (root.type === 'codeSpan') {
+    accu += replaceEntityChars(root.value);
+  }
+
   for (let node of root.children) {
     accu += render(node);
   }
@@ -32,6 +36,7 @@ const tags = {
   strong: ['<strong>', '</strong>'],
   link: ['<a>', '</a>'],
   root: ['<p>', '</p>\n'],
+  codeSpan: ['<code>', '</code>'],
 };
 
 function replaceEntityChars(s: string): string {
