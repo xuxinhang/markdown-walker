@@ -102,7 +102,7 @@ export default class LinkBuilder extends BaseBuilder {
         case ScanState.Label:
           if (ch === '\\' && !this.backslashEscapeActive) {
             this.backslashEscapeActive = true;
-            return; // BUILD_MSG_TYPE.USE; [TODO]
+            return BUILD_MSG_TYPE.USE; // [TODO]
           }
 
           if (ch === '[' && !this.backslashEscapeActive) {
