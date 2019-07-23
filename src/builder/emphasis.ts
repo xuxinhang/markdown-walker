@@ -161,6 +161,12 @@ export default class EmphasisBuilder extends BaseBuilder {
       this.bulletPrecededChar = ch;
     }
 
+    // update this record
+    const isFunctionalBulletChar = this.isBulletChar(ch) && !this.backslashEscapeActive;
+    if (!this.bulletCount && !isFunctionalBulletChar) {
+      this.bulletPrecededChar = ch;
+    }
+
     return [
       { type: BUILD_MSG_TYPE.OPEN_NODE, payload: currentNode },
     ];
@@ -196,11 +202,6 @@ export default class EmphasisBuilder extends BaseBuilder {
      *  =================================
      */
 
-    // update this record [C]
-    if (!this.bulletCount && !isFunctionalBulletChar) {
-      this.bulletPrecededChar = ch;
-    }
-
     // if meet the end of line, just close the node. [C]
     if (eol && (currentNode instanceof EmphasisNode)) {
       let parent = currentNode.parentNode;
@@ -211,7 +212,7 @@ export default class EmphasisBuilder extends BaseBuilder {
       ];
     }
 
-    if (isFunctionalBulletChar && !this.backslashEscapeActive) {
+    if (isFunctionalBulletChar) {
       // [B]
       if (this.bulletCount) {
         if (this.bulletChar === ch) this.bulletCount++;
