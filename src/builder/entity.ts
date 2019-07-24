@@ -1,11 +1,12 @@
 import entityMap from 'entities/maps/entities.json';
-import BaseBuilder, { BuildCmd, BUILD_MSG_TYPE } from './_base';
+import BaseBuilder from './_base';
 import { Point, Position } from '../utils';
 import Node from '../nodes';
+import { BuildCommand } from '../cmd';
 
 enum EntityType { None, Name, Dec, Hex };
 
-export default class EntityBuidler extends BaseBuilder {
+export class CustomEntityBuidler extends BaseBuilder {
   private startPoint: Point;
   private lastStartOffset: number;
   private entityType: EntityType;
@@ -29,12 +30,15 @@ export default class EntityBuidler extends BaseBuilder {
     this.entityCodeDigital = 0;
   }
 
-  feed(ch: string, position: Position, currentNode: Node): BuildCmd {
+  protected appendChar(ch: string, node: Node, pos: Position): any {
+    // the subclass has to rewrite this method.
+  }
+
+  feed(ch: string, position: Position, currentNode: Node): BuildCommand {
     // the end mark of html entities
     // if (ch === ';' && this.entityType !== EntityType.None) {
-      // this.entityType = EntityType.None;
-
-      // text = decodeentity(this.entityValue);
+    //   this.entityType = EntityType.None;
+    //   text = decodeentity(this.entityValue);
     // }
 
     if (this.lastStartOffset === position.start.offset){
@@ -49,13 +53,13 @@ export default class EntityBuidler extends BaseBuilder {
         if (ch === '&') {
           this.entityType = EntityType.Name;
           this.startPoint = position.start;
-          return BUILD_MSG_TYPE.USE;
+          return { use: true };
         }
         return; // break;
       case EntityType.Name:
         if (ch === ';') {
           if (this.entityName && entityMap[this.entityName]) {
-            currentNode.appendText(entityMap[this.entityName], position);
+            this.appendChar(entityMap[this.entityName], currentNode, position);
           } else {
             rollback = true;
             break;
@@ -65,7 +69,7 @@ export default class EntityBuidler extends BaseBuilder {
         }
         if (ch === '#' && !this.entityValue) {
           this.entityType = EntityType.Dec;
-          return BUILD_MSG_TYPE.USE;
+          return { use: true };
         }
         if (!isValidEntityNameChar(ch)) {
           rollback = true;
@@ -80,13 +84,13 @@ export default class EntityBuidler extends BaseBuilder {
             rollback = true;
             break;
           }
-          currentNode.appendText(getEntityDisplayChar(this.entityCode), position);
+          this.appendChar(getEntityDisplayChar(this.entityCode), currentNode, position);
           finish = true;
           break;
         }
         if ((ch == 'x' || ch === 'X') && !this.entityValue) {
           this.entityType = EntityType.Hex;
-          return BUILD_MSG_TYPE.USE;
+          return { use: true };
         }
         const d = parseInt(ch, 10);
         if (isNaN(d)) {
@@ -103,13 +107,13 @@ export default class EntityBuidler extends BaseBuilder {
             rollback = true;
             break;
           }
-          currentNode.appendText(getEntityDisplayChar(this.entityCode), position);
+          this.appendChar(getEntityDisplayChar(this.entityCode), currentNode, position);
           finish = true;
           break;
         }
         if (ch === '#' && !this.entityValue) {
           this.entityType = EntityType.Dec;
-          return BUILD_MSG_TYPE.USE;
+          return { use: true };
         }
         const h = parseInt(ch, 16);
         if (isNaN(h)) {
@@ -129,10 +133,7 @@ export default class EntityBuidler extends BaseBuilder {
       this.entityName = '';
       this.entityCode = undefined;
       this.entityCodeDigital = 0;
-      return [
-        BUILD_MSG_TYPE.USE,
-        { type: BUILD_MSG_TYPE.MOVE_TO, payload: start },
-      ];
+      return { use: true, moveTo: start };
     }
 
     if (finish) {
@@ -141,10 +142,10 @@ export default class EntityBuidler extends BaseBuilder {
       this.entityName = '';
       this.entityCode = undefined;
       this.entityCodeDigital = 0;
-      return BUILD_MSG_TYPE.USE;
+      return { use: true };
     }
 
-    return BUILD_MSG_TYPE.USE;
+    return { use: true };
 
     // if (ch === '\0' && this.entityType !== EntityType.None) {
     //   this.entityType = EntityType.None;
@@ -177,6 +178,7 @@ function isValidEntityNameChar(s: string) {
 //   }
 // }
 
+// [TODO]: the pollify for String.fromCodePoint
 function fromCodePoint(c) {
   if (c > 0xffff) {
     c -= 0x10000;
@@ -215,3 +217,14 @@ function isValidCodePoint(c: number) {
 
   return true;
 }
+
+export default class EntityBuidler extends CustomEntityBuidler {
+  constructor() {
+    super();
+  }
+
+  protected appendChar(ch: string, node: Node, pos: Position) {
+    node.appendText(ch, pos);
+  }
+}
+

@@ -2,9 +2,6 @@
  * 各种节点的解析
  */
 
-import Node from '../nodes';
-import { Position, Point } from '../nodes';
-
 import BaseBuilder, { BUILD_MSG_TYPE } from './_base';
 
 // import ParagraphBuilder from './paragraph';

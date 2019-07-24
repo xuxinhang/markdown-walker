@@ -1,6 +1,7 @@
-import BaseBuilder, { BUILD_MSG_TYPE } from './_base';
-import { Point, Position, isEscapableChar } from '../utils';
-import Node, { TextNode } from '../nodes';
+import BaseBuilder from './_base';
+import { Position, isEscapableChar } from '../utils';
+import Node from '../nodes';
+import { BuildCommand } from '../cmd';
 
 export default class TextBuilder extends BaseBuilder {
   private backslashEscapeActive: boolean;
@@ -14,7 +15,7 @@ export default class TextBuilder extends BaseBuilder {
     this.backslashEscapeActive = false;
   }
 
-  feed(ch: string, position: Position, currentNode: Node) {
+  feed(ch: string, position: Position, currentNode: Node): BuildCommand {
     // ignore control characters
     // if (ch === '\n' || ch === '\r' || ch === '\u0002' || ch === '\u0003' || ch === '\0') return;
     let text: string;
@@ -25,7 +26,7 @@ export default class TextBuilder extends BaseBuilder {
     }
 
     if (ch === '\0') {
-      return BUILD_MSG_TYPE.END;
+      return { end: true };
       // return { type: BUILD_MSG_TYPE.OPEN_NODE, payload: currentNode.parentNode };
     }
 
@@ -37,7 +38,7 @@ export default class TextBuilder extends BaseBuilder {
     }
 
     currentNode.appendText(text, position);
-    return { type: BUILD_MSG_TYPE.OPEN_NODE, payload: currentNode };
+    return { node: currentNode };
 
     // // attach characters to tailed text node
     // if (currentNode instanceof Node) {

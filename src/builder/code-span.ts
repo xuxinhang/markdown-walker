@@ -1,4 +1,4 @@
-import BaseBuilder, { BUILD_MSG_TYPE } from './_base';
+import BaseBuilder from './_base';
 import { Point, Position } from '../utils';
 import Node, { CodeSpanNode } from '../nodes';
 
@@ -70,19 +70,16 @@ export default class CodeSpanBuilder extends BaseBuilder {
       const offsetDiff = this.endBacktickOffset - position.start.offset;
       if (offsetDiff > 0) {
         this.readCode(ch, offsetDiff === 1);
-        return BUILD_MSG_TYPE.USE;
+        return { use: true };
       } else {
         this.resetReadModeState();
-        return [
-          BUILD_MSG_TYPE.USE,
-          { type: BUILD_MSG_TYPE.MOVE_TO, payload: this.endBacktickEndPoint },
-        ];
+        return { use: true, moveTo: this.endBacktickEndPoint };
       }
     }
 
     if (this.skipMode) {
       if (position.start.offset < this.skipEndOffset) {
-        return this.codeActive ? BUILD_MSG_TYPE.USE : undefined;
+        return { use: this.codeActive ? true : false };
       }
       this.resetSkipModeState(); // and then continue
     }
@@ -97,10 +94,7 @@ export default class CodeSpanBuilder extends BaseBuilder {
 
       this.codeActive = false;
       this.resetBacktickStrState();
-      return [
-        BUILD_MSG_TYPE.USE,
-        { type: BUILD_MSG_TYPE.MOVE_TO, payload: this.codeValuePoint },
-      ];
+      return { use: true, moveTo: this.codeValuePoint };
     }
 
     if (ch === '`') {
@@ -110,7 +104,7 @@ export default class CodeSpanBuilder extends BaseBuilder {
         this.backtickStrCount = 1;
         this.backtickStrBeginPoint = position.start;
       }
-      return BUILD_MSG_TYPE.USE;
+      return { use: true };
     }
 
     if (ch === '\0') {
@@ -121,27 +115,18 @@ export default class CodeSpanBuilder extends BaseBuilder {
           this.activateSkipMode(this.codeValuePoint.offset);
           this.resetBacktickStrState();
           this.codeActive = false;
-          return [
-            BUILD_MSG_TYPE.USE,
-            { type: BUILD_MSG_TYPE.MOVE_TO, payload: this.beginBacktickPoint },
-          ];
+          return { use: true, moveTo: this.beginBacktickPoint };
         }
       } else if (this.backtickStrCount > 0) {
         this.activateSkipMode(position.start.offset);
         const skipBeginPoint = this.backtickStrBeginPoint;
         this.resetBacktickStrState();
-        return [
-          BUILD_MSG_TYPE.USE,
-          { type: BUILD_MSG_TYPE.MOVE_TO, payload: skipBeginPoint },
-        ];
+        return { use: true, moveTo: skipBeginPoint };
       } else if (this.codeActive) {
         this.activateSkipMode(this.codeValuePoint.offset);
         // this.resetBacktickStrState();
         this.codeActive = false;
-        return [
-          BUILD_MSG_TYPE.USE,
-          { type: BUILD_MSG_TYPE.MOVE_TO, payload: this.beginBacktickPoint },
-        ];
+        return { use: true, moveTo: this.beginBacktickPoint };
       } else {
         return;
       }
@@ -155,10 +140,7 @@ export default class CodeSpanBuilder extends BaseBuilder {
         this.activateSkipMode(position.start.offset);
         const skipBeginPoint = this.backtickStrBeginPoint;
         this.resetBacktickStrState();
-        return [
-          BUILD_MSG_TYPE.USE,
-          { type: BUILD_MSG_TYPE.MOVE_TO, payload: skipBeginPoint },
-        ];
+        return { use: true, moveTo: skipBeginPoint };
       }
     } else if (this.backtickStrCount > 0) {
       this.beginBacktickCount = this.backtickStrCount;
@@ -166,9 +148,9 @@ export default class CodeSpanBuilder extends BaseBuilder {
       this.codeValuePoint = position.start;
       this.codeActive = true;
       this.resetBacktickStrState();
-      return BUILD_MSG_TYPE.USE;
+      return { use: true };
     } else if (this.codeActive) {
-      return BUILD_MSG_TYPE.USE;
+      return { use: true };
     } else {
       return;
     }

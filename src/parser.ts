@@ -1,8 +1,8 @@
 import Node, { RootNode } from './nodes';
-import { Position, Point, mergeNode } from './utils';
+import { Position, Point } from './utils';
 import builders, { Builder, BUILD_MSG_TYPE } from './builder';
 import BuildCallStack from './utils/build-call-stack';
-import TextBuilder from './builder/text';
+import { BuildCommand, defaultBuildCommand, BuildState } from './cmd';
 
 interface BuildItem {
   name: string;
@@ -25,7 +25,8 @@ interface BuildCall {
 export default function parseInline(src: string = '') {
   let point: Point = new Point(1, 1, 0);
   let currentNode: Node;
-  let endFlag: boolean = false;
+  let endFlag: boolean = false; // when true, ternimate the parsing process
+  let dryRunMode: boolean = false;
 
   // Initialize a build call stack
   const callStack = new BuildCallStack();
@@ -42,6 +43,7 @@ export default function parseInline(src: string = '') {
 
   const buildCalls: BuildCall[] = [
     { id: 'emphasis_pre', build: builds.emphasis, method: 'preFeed' },
+    // { id: 'link_pre', build: builds.link, method: 'preFeed' },
     { id: 'code_span', build: builds.code_span, method: 'feed' },
     { id: 'link', build: builds.link, method: 'feed' },
     { id: 'emphasis', build: builds.emphasis, method: 'feed' },
@@ -55,10 +57,10 @@ export default function parseInline(src: string = '') {
   while (point.offset >= 0) {
     const ch = src.charAt(point.offset);
     if (ch) {
-      feedChar(ch, position);
+      feedChar2(ch, position);
     } else {
       // feed NULL character as end mark until all nodes are closed
-      feedChar('\0', position);
+      feedChar2('\0', position);
       if (endFlag) { // && (currentNode instanceof RootNode)) {
         break;
       }
@@ -172,6 +174,59 @@ export default function parseInline(src: string = '') {
     for (; i < buildCalls.length; i++) {
       const item = buildCalls[i];
       const rst = item.build.reset(ch, position);
+    }
+
+    if (moveToNextPoint) {
+      const isNewLine = ch === '\n';
+      setPoint(new Point(
+        isNewLine ? (point.line + 1) : point.line,
+        isNewLine ? 1 : point.column,
+        point.offset + 1
+      ));
+    }
+  }
+
+  function feedChar2(ch: string, position: Position) {
+    let moveToNextPoint: boolean = true;
+    let continueBuildChain: boolean = true;
+
+    for (const item of buildCalls) {
+      const state: BuildState = {
+        node: currentNode,
+        end: endFlag,
+        dryRun: dryRunMode,
+      };
+      const rst: BuildCommand = item.build[item.method](ch, position, currentNode, endFlag, state);
+      const cmd = typeof rst === 'object' ? { ...defaultBuildCommand, ...rst } : defaultBuildCommand;
+
+      if (cmd.use) {
+        continueBuildChain = false;
+      }
+      if (cmd.node !== undefined) {
+        openNode(cmd.node);
+      }
+      if (cmd.useChar) {
+        ch = cmd.useChar;
+      }
+      if (cmd.requestCloseNode) {
+        ch = '\0';
+        moveToNextPoint = false;
+      }
+      // if (cmd.moveBy) {
+      //   moveToNextPoint = true;
+      // }
+      if (cmd.moveTo) {
+        setPoint(cmd.moveTo);
+        moveToNextPoint = false;
+      }
+      if (cmd.dryRun) {
+        dryRunMode = cmd.dryRun;
+      }
+      if (cmd.end) {
+        endFlag = cmd.end;
+      }
+
+      if (!continueBuildChain) break;
     }
 
     if (moveToNextPoint) {

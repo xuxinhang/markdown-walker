@@ -1,26 +1,18 @@
-import { Point, Position } from '../utils';
+import { Position } from '../utils';
 import Node from '../nodes';
+import { BuildState, BuildCommand } from '../cmd';
 
 export default class BaseBuilder {
   [props: string]: any;
 
-  feed(ch: string, position: Position, currentNode?: Node, innerEnd?: boolean): (BuildCmd) {
-    return { type: BUILD_MSG_TYPE.NONE };
+  feed(ch: string, position: Position, currentNode?: Node, innerEnd?: boolean, state?: BuildState): BuildCommand {
+    return { /* NONE */ };
   }
 
-  reset(ch: string, position: Position): (BuildCmd) {
-    return { type: BUILD_MSG_TYPE.NONE };
+  reset(ch: string, position: Position, state?: BuildState): BuildCommand {
+    return { /* NONE */ };
   }
 }
-
-// export enum BUILD_CMD {
-//   END_NODE,
-//   START_NODE,
-//   UPDATE_NODE,
-//   VENTURE_START,
-//   VENTURE_START_CONFIRM,
-//   VENTURE_START_DROP,
-// };
 
 export enum BUILD_MSG_TYPE {
   PREPARE_NODE,

@@ -1,6 +1,7 @@
-import BaseBuilder, { BUILD_MSG_TYPE, BuildCmd } from './_base';
+import BaseBuilder from './_base';
 import { Point, Position, isUnicodeWhitespaceChar, isPunctuationChar, repeatChar } from '../utils';
 import Node, { EmphasisNode, StrongNode, TextNode } from '../nodes';
+import { BuildCommand } from '../cmd';
 
 enum BulletType { LEFT = 2, RIGHT = 1, BOTH = 3, NEITHER = 0 };
 
@@ -61,7 +62,7 @@ export default class EmphasisBuilder extends BaseBuilder {
 
   /* main */
 
-  preFeed(ch: string, position: Position, currentNode: Node): BuildCmd {
+  preFeed(ch: string, position: Position, currentNode: Node): BuildCommand {
     if (this.bulletCount && ch !== this.bulletChar) {
       // [N]
       this.bulletFollowedChar = ch;
@@ -167,12 +168,10 @@ export default class EmphasisBuilder extends BaseBuilder {
       this.bulletPrecededChar = ch;
     }
 
-    return [
-      { type: BUILD_MSG_TYPE.OPEN_NODE, payload: currentNode },
-    ];
+    return { node: currentNode };
   }
 
-  feed(ch: string, position: Position, currentNode: Node): BuildCmd {
+  feed(ch: string, position: Position, currentNode: Node): BuildCommand {
     if (ch === '\\' && !this.backslashEscapeActive) {
       this.backslashEscapeActive = true;
       return;
@@ -206,10 +205,10 @@ export default class EmphasisBuilder extends BaseBuilder {
     if (eol && (currentNode instanceof EmphasisNode)) {
       let parent = currentNode.parentNode;
       textifyNode(currentNode);
-      return [
-        BUILD_MSG_TYPE.USE, // vital for nested emphasis nodes.
-        { type: BUILD_MSG_TYPE.OPEN_NODE, payload: parent }
-      ];
+      return {
+        use: true, // vital for nested emphasis nodes.
+        node: parent,
+      };
     }
 
     if (isFunctionalBulletChar) {
@@ -221,16 +220,11 @@ export default class EmphasisBuilder extends BaseBuilder {
         this.bulletCount = 1;
       }
 
-      return [
-        BUILD_MSG_TYPE.USE,
-        { type: BUILD_MSG_TYPE.OPEN_NODE, payload: currentNode },
-      ];
+      return { use: true, node: currentNode };
     }
 
     this.backslashEscapeActive = false;
-    return [
-      { type: BUILD_MSG_TYPE.OPEN_NODE, payload: currentNode },
-    ];
+    return { node: currentNode };
   }
 }
 

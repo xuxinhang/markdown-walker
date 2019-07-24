@@ -1,7 +1,8 @@
-import BaseBuilder, { BuildCmd } from "./_base";
+import BaseBuilder from "./_base";
 import { Position, Point, isASCIISpace, isASCIIControlChar, isWhitespaceChar, isEscapableChar } from "../utils";
 import Node, { LinkNode } from "../nodes";
-import { BUILD_MSG_TYPE } from ".";
+import { CustomEntityBuidler } from "./entity";
+import { BuildCommand } from "../cmd";
 
 enum ScanState {
   None,
@@ -45,10 +46,13 @@ export default class LinkBuilder extends BaseBuilder {
   private linkTitleClosed: boolean = false;
   private backslashEscapeActive: boolean = false;
 
+  private entityBuild: CustomEntityBuidler;
+
 
   constructor() {
     super();
     this.resetInnerState();
+    this.entityBuild = new CustomEntityBuidler();
   }
 
   private resetInnerState() {
@@ -62,7 +66,9 @@ export default class LinkBuilder extends BaseBuilder {
     this.backslashEscapeActive = false;
   }
 
-  feed(ch: string, position: Position, currentNode: Node, innerEnd: boolean): BuildCmd {
+  // preFeed(ch: string, position: Position, currentNode: Node) {
+
+  feed(ch: string, position: Position, currentNode: Node, innerEnd: boolean): BuildCommand {
     // It's necessary to scan ahead the string to determinate whether it is a valid link node,
     // because builders need to re-run from the beginning after finding the previously created
     // node invalid, which might cause redundant parsing process.
@@ -88,11 +94,11 @@ export default class LinkBuilder extends BaseBuilder {
       this.bracketStack.push(position.start.offset);
       this.scanStartPoint = position.start;
       this.scanState = ScanState.Label;
-      return BUILD_MSG_TYPE.USE;
+      return { use: true };
     }
   }
 
-  scan(ch: string, position: Position, currentNode: Node): BuildCmd {
+  scan(ch: string, position: Position, currentNode: Node): BuildCommand {
     let matchFailMark: boolean = false;
 
     if (ch === '\0' && this.scanState !== ScanState.None) {
@@ -102,16 +108,16 @@ export default class LinkBuilder extends BaseBuilder {
         case ScanState.Label:
           if (ch === '\\' && !this.backslashEscapeActive) {
             this.backslashEscapeActive = true;
-            return BUILD_MSG_TYPE.USE; // [TODO]
+            return { use: true }; // [TODO]
           }
 
           if (ch === '[' && !this.backslashEscapeActive) {
             this.bracketStack.push(position.start.offset);
-            return BUILD_MSG_TYPE.USE;
+            return { use: true };
           } else if (ch === ']' && !this.backslashEscapeActive) {
             this.scanState = ScanState.EndBracket;
             this.endBracketOffset = position.start.offset;
-            return BUILD_MSG_TYPE.USE;
+            return { use: true };
           }
 
           this.backslashEscapeActive = false;
@@ -131,11 +137,11 @@ export default class LinkBuilder extends BaseBuilder {
             this.scanState = ScanState.Label;
             if (ch === '[') {
               this.bracketStack.push(position.start.offset);
-              return BUILD_MSG_TYPE.SKIP_TEXT;
+              return { use: true }; // MSG_TYPE.SKIP_TEXT;
             } else if (ch === ']') {
               this.scanState = ScanState.EndBracket;
               this.endBracketOffset = position.start.offset;
-              return BUILD_MSG_TYPE.USE;
+              return { use: true };
             }
           }
           break;
@@ -212,10 +218,7 @@ export default class LinkBuilder extends BaseBuilder {
       this.endBypassOffset = position.start.offset;
       this.startBypassOffset = this.scanStartPoint.offset;
 
-      return [
-        BUILD_MSG_TYPE.USE,
-        { type: BUILD_MSG_TYPE.MOVE_TO, payload: this.scanStartPoint },
-      ];
+      return { use: true, moveTo: this.scanStartPoint };
     }
 
     if (this.scanState === ScanState.EndParenthesis) {
@@ -227,16 +230,13 @@ export default class LinkBuilder extends BaseBuilder {
       this.scanEndPoint = position.start;
 
       this.resetInnerState();
-      return [
-        BUILD_MSG_TYPE.USE,
-        { type: BUILD_MSG_TYPE.MOVE_TO, payload: this.scanStartPoint },
-      ];
+      return { use: true, moveTo: this.scanStartPoint };
     }
 
-    return BUILD_MSG_TYPE.USE;
+    return { use: true };
   }
 
-  processLabel(ch: string, position: Position, currentNode: Node, innerEnd: boolean): BuildCmd {
+  processLabel(ch: string, position: Position, currentNode: Node, innerEnd: boolean): BuildCommand {
     const currentOffset = position.start.offset;
 
     if (currentOffset < this.startBracketOffset) {
@@ -247,31 +247,26 @@ export default class LinkBuilder extends BaseBuilder {
       const node = this.nodeToAppend;
       currentNode.appendChild(node);
       this.activeNode = node;
-      return [
-        BUILD_MSG_TYPE.USE,
-        { type: BUILD_MSG_TYPE.OPEN_NODE, payload: node },
-      ];
+      return { use: true, node };
     }
 
     if (currentOffset === this.endBracketOffset) {
       if (currentNode === this.activeNode && innerEnd) {
-        return [
-          BUILD_MSG_TYPE.USE,
-          BUILD_MSG_TYPE.START,
-          { type: BUILD_MSG_TYPE.OPEN_NODE, payload: currentNode.parentNode },
-          { type: BUILD_MSG_TYPE.MOVE_TO, payload: this.scanEndPoint },
-        ];
+        return {
+          use: true,
+          end: false,
+          node: currentNode.parentNode,
+          moveTo: this.scanEndPoint,
+        };
       } else {
-        return [
-          BUILD_MSG_TYPE.REQUEST_CLOSE_NODE,
-        ];
+        return { requestCloseNode: true };
       }
     }
 
     if (currentOffset > this.endBracketOffset) { // )
       this.processingLabel = false;
       this.scanningStructure = false;
-      return BUILD_MSG_TYPE.USE;
+      return { use: true };
     }
   }
 
@@ -351,7 +346,9 @@ export default class LinkBuilder extends BaseBuilder {
       return false;
     }
 
+    // this.entityBuild.feed(ch, null, null);
     this.linkTitle += (this.backslashEscapeActive && !isEscapableChar(ch) ? '\\' : '') + ch;
+
     this.backslashEscapeActive = false;
     return true;
   }
