@@ -21,7 +21,7 @@ export const defaultBuildCommand = {
   moveBy: true,
   moveTo: undefined,
   end: false,
-  dryRun: false,
+  dryRun: undefined,
 };
 
 export interface BuildState {

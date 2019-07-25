@@ -94,7 +94,8 @@ export default class LinkBuilder extends BaseBuilder {
       this.bracketStack.push(position.start.offset);
       this.scanStartPoint = position.start;
       this.scanState = ScanState.Label;
-      return { use: true };
+      // enable dry-run mode, which means to parse code-span but insert no code-span node.
+      return { use: true, dryRun: true };
     }
   }
 
@@ -126,8 +127,9 @@ export default class LinkBuilder extends BaseBuilder {
           if (ch === '(') {
             this.scanState = ScanState.StartParenthesis;
             this.startBracketOffset = this.bracketStack.pop();
+            return { use: true, dryRun: false };
           } else {
-            // [TODO] view the right bracket as a simple char
+            // [TODO]: view the right bracket as a simple char
             this.bracketStack.pop();
             if (this.bracketStack.length === 0) {
               matchFailMark = true;
@@ -218,7 +220,7 @@ export default class LinkBuilder extends BaseBuilder {
       this.endBypassOffset = position.start.offset;
       this.startBypassOffset = this.scanStartPoint.offset;
 
-      return { use: true, moveTo: this.scanStartPoint };
+      return { use: true, moveTo: this.scanStartPoint, dryRun: false };
     }
 
     if (this.scanState === ScanState.EndParenthesis) {
@@ -230,7 +232,7 @@ export default class LinkBuilder extends BaseBuilder {
       this.scanEndPoint = position.start;
 
       this.resetInnerState();
-      return { use: true, moveTo: this.scanStartPoint };
+      return { use: true, moveTo: this.scanStartPoint, dryRun: false };
     }
 
     return { use: true };

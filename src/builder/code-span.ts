@@ -1,6 +1,7 @@
 import BaseBuilder from './_base';
 import { Point, Position } from '../utils';
 import Node, { CodeSpanNode } from '../nodes';
+import { BuildState, BuildCommand } from '../cmd';
 
 export default class CodeSpanBuilder extends BaseBuilder {
   backtickStrCount: number;
@@ -65,11 +66,23 @@ export default class CodeSpanBuilder extends BaseBuilder {
     this.skipEndOffset = 0;
   }
 
-  feed(ch: string, position: Position, currentNode: Node) {
+  feed(ch: string, position: Position, currentNode: Node, innerEnd: boolean, state: BuildState): BuildCommand {
     if (this.readMode) {
       const offsetDiff = this.endBacktickOffset - position.start.offset;
       if (offsetDiff > 0) {
-        this.readCode(ch, offsetDiff === 1);
+        // [TODO]: the line endings contain \r\n, which is ignored here.
+        const isLastChar = offsetDiff === 1;
+        const charToAppend = (ch === '\n' || ch === '\r') ? ' ' : ch;
+        this.onlySpaceChars = this.onlySpaceChars && ch === ' ';
+
+        if (!state.dryRun) {
+          if (isLastChar && !this.onlySpaceChars && ch === ' ' && this.activeNode.value.startsWith(' ')) {
+            this.activeNode.value = this.activeNode.value.slice(1);
+          } else {
+            this.activeNode.value += charToAppend;
+          }
+        }
+
         return { use: true };
       } else {
         this.resetReadModeState();
@@ -85,8 +98,10 @@ export default class CodeSpanBuilder extends BaseBuilder {
     }
 
     const createAndFillCodeSpanNode = () => {
-      this.activeNode = new CodeSpanNode(position);
-      currentNode.appendChild(this.activeNode);
+      if (!state.dryRun) {
+        this.activeNode = new CodeSpanNode(position);
+        currentNode.appendChild(this.activeNode);
+      }
 
       this.readMode = true;
       this.endBacktickOffset = this.backtickStrBeginPoint.offset;
@@ -157,17 +172,6 @@ export default class CodeSpanBuilder extends BaseBuilder {
   }
 
   readCode(ch: string, isLastChar: boolean = false) {
-    // [TODO]: the line endings contain \r\n, which is ignored here.
-    if (ch === '\n' || ch === '\r') {
-      ch = ' ';
-    }
-    this.onlySpaceChars = this.onlySpaceChars && ch === ' ';
-
-    if (isLastChar && !this.onlySpaceChars && ch === ' ' && this.activeNode.value.startsWith(' ')) {
-      this.activeNode.value = this.activeNode.value.slice(1);
-    } else {
-      this.activeNode.value += ch;
-    }
   }
 }
 
