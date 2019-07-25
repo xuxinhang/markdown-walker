@@ -10,34 +10,32 @@ const inspector = require('inspector');
 const http = require('http');
 
 const parse = require('./src/parser.ts').default;
-
-
-// const mdStr = fs.readFileSync('./__example-markdown.md', 'utf8');
-// const ast = parse(mdStr);
+const render = require('./src/render.ts').default;
 
 function run(src) {
   const ast = parse(src);
   return ast;
 }
 
-var cases = [
-  // '_A __B__C_',
-  // 'foo **_**',
-  // 'foo*',
-  // '*foo _bar* baz_',
-  // '*A**B**C*',
-  '[A](x)*',
-  // '[[#]ABC](xyz)',
-];
+var cases = [];
+
+try {
+  var cs = require('./__playground_testcases.js');
+  cases.splice(0, 0, ...cs);
+} catch (e) {
+  console.warn('No playground case file found.');
+}
 
 cases.forEach(item => {
   console.log(item);
-  console.log(util.inspect(run(item), {
+  const ast = run(item);
+  console.log(util.inspect(ast, {
     showHiddle: false,
     depth: Infinity,
     colors: true,
     // customInspect: false,
   }));
+  console.log(render(ast));
 });
 
 return;
