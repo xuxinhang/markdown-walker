@@ -1,17 +1,8 @@
 import Node, { RootNode } from './nodes';
 import { Position, Point } from './utils';
-import builders, { BUILD_MSG_TYPE } from './builder';
+import builders from './builder';
 import Builder from './builder/_base';
-import BuildCallStack from './utils/build-call-stack';
 import { BuildCommand, defaultBuildCommand, BuildState } from './cmd';
-
-// interface BuildItem {
-//   name: string;
-//   precedence: number;
-//   build: Builder;
-//   builder: any;
-//   method?: string;
-// }
 
 interface BuildMap {
   [name: string]: Builder;
@@ -26,19 +17,15 @@ interface BuildCall {
 export default function parseInline(src: string = '') {
   let point: Point = new Point(1, 1, 0);
   let currentNode: Node;
-  let endFlag: boolean = false; // when true, ternimate the parsing process
+  let endFlag: boolean = false; // if true, ternimate the parsing process
   let dryRunMode: boolean = false;
-
-  // Initialize a build call stack
-  const callStack = new BuildCallStack();
-  let lastGiveUpBuildName: string = '';
 
   let position = new Position(point, point);
   var tree = new RootNode(position);
   currentNode = tree;
 
   const builds: BuildMap = {};
-  for (let [name, builder] of builders) {
+  for (let [name, builder] of Object.entries(builders)) {
     builds[name] = new builder();
   }
 
@@ -70,6 +57,7 @@ export default function parseInline(src: string = '') {
 
   return tree;
 
+  /*
   function feedChar(ch: string, position: Position) {
     let continueBuildChain: boolean = true;
     let skipTextBuild: boolean = false;
@@ -186,6 +174,7 @@ export default function parseInline(src: string = '') {
       ));
     }
   }
+  */
 
   function feedChar2(ch: string, position: Position) {
     let moveToNextPoint: boolean = true;
@@ -245,7 +234,7 @@ export default function parseInline(src: string = '') {
     position = new Position(point, new Point(0, 0, point.offset + 1)); // [TODO]
   }
 
-  function openNode(node: Node) {
+  /* function openNode(node: Node) {
     currentNode = node;
-  }
+  } */
 }

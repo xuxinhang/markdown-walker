@@ -1,9 +1,4 @@
-/**
- * 各种节点的解析
- */
-
-import BaseBuilder from './_base';
-
+// import BaseBuilder from './_base';
 import TextBuilder from './text';
 import EmphasisBuilder from './emphasis';
 import LinkBuilder from './link';
@@ -12,23 +7,24 @@ import CodeSpanBuilder from './code-span';
 
 
 /**
- * exports builder classes
+ * @exports - builder classes
  */
 
-const builders = new Map<string, typeof BaseBuilder>();
-// builders.set('paragraph', ParagraphBuilder);
-// builders.set('strong', StrongBuilder);
-builders.set('link', LinkBuilder);
-builders.set('emphasis', EmphasisBuilder);
-builders.set('text', TextBuilder);
-builders.set('entity', EntityBuidler);
-builders.set('code_span', CodeSpanBuilder);
+const exportedBuilders = {
+  // paragraph: ParagraphBuilder,
+  // strong: StrongBuilder,
+  link: LinkBuilder,
+  emphasis: EmphasisBuilder,
+  text: TextBuilder,
+  entity: EntityBuidler,
+  code_span: CodeSpanBuilder,
+};
 
-export default builders;
+export default exportedBuilders;
 
 
 /**
- * exports build message type (obsolete)
+ * [OBSOLETE] exports build message type
  */
 
 export enum BUILD_MSG_TYPE {
