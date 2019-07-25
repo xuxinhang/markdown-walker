@@ -1,16 +1,17 @@
 import Node, { RootNode } from './nodes';
 import { Position, Point } from './utils';
-import builders, { Builder, BUILD_MSG_TYPE } from './builder';
+import builders, { BUILD_MSG_TYPE } from './builder';
+import Builder from './builder/_base';
 import BuildCallStack from './utils/build-call-stack';
 import { BuildCommand, defaultBuildCommand, BuildState } from './cmd';
 
-interface BuildItem {
-  name: string;
-  precedence: number;
-  build: Builder;
-  builder: any;
-  method?: string;
-}
+// interface BuildItem {
+//   name: string;
+//   precedence: number;
+//   build: Builder;
+//   builder: any;
+//   method?: string;
+// }
 
 interface BuildMap {
   [name: string]: Builder;
@@ -203,7 +204,7 @@ export default function parseInline(src: string = '') {
         continueBuildChain = false;
       }
       if (cmd.node !== undefined) {
-        openNode(cmd.node);
+        currentNode = cmd.node;
       }
       if (cmd.useChar) {
         ch = cmd.useChar;
@@ -219,7 +220,7 @@ export default function parseInline(src: string = '') {
         setPoint(cmd.moveTo);
         moveToNextPoint = false;
       }
-      if (cmd.dryRun) {
+      if (cmd.dryRun !== undefined) {
         dryRunMode = cmd.dryRun;
       }
       if (cmd.end) {
@@ -246,11 +247,5 @@ export default function parseInline(src: string = '') {
 
   function openNode(node: Node) {
     currentNode = node;
-  }
-
-  function openLastChildNodeOfCurrentNode() {
-    if (currentNode instanceof Node) {
-      openNode(currentNode.children[currentNode.children.length - 1]);
-    }
   }
 }
