@@ -10,7 +10,6 @@ export class CustomEntityBuidler extends BaseBuilder {
   private startPoint: Point;
   private lastStartOffset: number;
   private entityType: EntityType;
-  // private entityValue: string;
   private entityName: string;
   private entityCode: number;
   private entityCodeDigital: number;
@@ -24,7 +23,6 @@ export class CustomEntityBuidler extends BaseBuilder {
     this.startPoint = null;
     this.lastStartOffset = undefined;
     this.entityType = EntityType.None;
-    // this.entityValue = '';
     this.entityName = '';
     this.entityCode = undefined;
     this.entityCodeDigital = 0;
@@ -67,7 +65,7 @@ export class CustomEntityBuidler extends BaseBuilder {
           finish = true;
           break;
         }
-        if (ch === '#' && !this.entityValue) {
+        if (ch === '#' && !this.entityName) {
           this.entityType = EntityType.Dec;
           return { use: true };
         }
@@ -88,7 +86,7 @@ export class CustomEntityBuidler extends BaseBuilder {
           finish = true;
           break;
         }
-        if ((ch == 'x' || ch === 'X') && !this.entityValue) {
+        if ((ch == 'x' || ch === 'X') && this.entityCode === undefined) {
           this.entityType = EntityType.Hex;
           return { use: true };
         }
@@ -111,7 +109,7 @@ export class CustomEntityBuidler extends BaseBuilder {
           finish = true;
           break;
         }
-        if (ch === '#' && !this.entityValue) {
+        if (ch === '#' && this.entityCode === undefined) {
           this.entityType = EntityType.Dec;
           return { use: true };
         }
@@ -146,16 +144,6 @@ export class CustomEntityBuidler extends BaseBuilder {
     }
 
     return { use: true };
-
-    // if (ch === '\0' && this.entityType !== EntityType.None) {
-    //   this.entityType = EntityType.None;
-    //   text = '&' + this.entityValue + ';';
-    // }
-
-    // if (this.entityType !== EntityType.None) {
-    //   this.entityValue += ch;
-    //   return;
-    // }
   }
 }
 
