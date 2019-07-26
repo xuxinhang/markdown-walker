@@ -195,25 +195,25 @@ export default function parseInline(src: string = '') {
       if (cmd.node !== undefined) {
         currentNode = cmd.node;
       }
-      if (cmd.useChar) {
+      if (cmd.useChar !== undefined) {
         ch = cmd.useChar;
       }
       if (cmd.requestCloseNode) {
         ch = '\0';
         moveToNextPoint = false;
       }
-      // if (cmd.moveBy) {
-      //   moveToNextPoint = true;
-      // }
-      if (cmd.moveTo) {
+      if (cmd.moveTo !== undefined) {
         setPoint(cmd.moveTo);
         moveToNextPoint = false;
       }
       if (cmd.dryRun !== undefined) {
         dryRunMode = cmd.dryRun;
       }
-      if (cmd.end) {
+      if (cmd.end !== undefined) {
         endFlag = cmd.end;
+      }
+      if (cmd.moveBy !== undefined) {
+        moveToNextPoint = cmd.moveBy;
       }
 
       if (!continueBuildChain) break;
@@ -233,8 +233,4 @@ export default function parseInline(src: string = '') {
     point = newPoint;
     position = new Position(point, new Point(0, 0, point.offset + 1)); // [TODO]
   }
-
-  /* function openNode(node: Node) {
-    currentNode = node;
-  } */
 }

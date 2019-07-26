@@ -18,9 +18,9 @@ export const defaultBuildCommand = {
   use: false,
   useChar: undefined,
   requestCloseNode: false,
-  moveBy: true,
+  moveBy: undefined,
   moveTo: undefined,
-  end: false,
+  end: undefined,
   dryRun: undefined,
 };
 
