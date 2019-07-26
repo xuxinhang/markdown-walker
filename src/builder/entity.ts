@@ -5,6 +5,7 @@ import Node from '../nodes';
 import { BuildCommand } from '../cmd';
 
 enum EntityType { None, Name, Dec, Hex };
+type AppendCharFunction = (ch: string, node?: Node, pos?: Position) => any;
 
 export class CustomEntityBuidler extends BaseBuilder {
   private startPoint: Point;
@@ -13,10 +14,12 @@ export class CustomEntityBuidler extends BaseBuilder {
   private entityName: string;
   private entityCode: number;
   private entityCodeDigital: number;
+  public appendChar: AppendCharFunction;
 
-  constructor() {
+  constructor(appendCharFn?: AppendCharFunction) {
     super();
     this.resetInnerState();
+    this.appendChar = appendCharFn || (() => {});
   }
 
   private resetInnerState() {
@@ -28,20 +31,8 @@ export class CustomEntityBuidler extends BaseBuilder {
     this.entityCodeDigital = 0;
   }
 
-  protected appendChar(ch: string, node: Node, pos: Position): any {
-    // the subclass has to rewrite this method.
-  }
-
   feed(ch: string, position: Position, currentNode: Node): BuildCommand {
-    // the end mark of html entities
-    // if (ch === ';' && this.entityType !== EntityType.None) {
-    //   this.entityType = EntityType.None;
-    //   text = decodeentity(this.entityValue);
-    // }
-
-    if (this.lastStartOffset === position.start.offset){
-      return;
-    }
+    if (this.lastStartOffset === position.start.offset) return;
 
     let rollback = false;
     let finish = false;
@@ -209,9 +200,10 @@ function isValidCodePoint(c: number) {
 export default class EntityBuidler extends CustomEntityBuidler {
   constructor() {
     super();
+    this.appendChar = this.__appendChar;
   }
 
-  protected appendChar(ch: string, node: Node, pos: Position) {
+  protected __appendChar(ch: string, node: Node, pos: Position) {
     node.appendText(ch, pos);
   }
 }

@@ -42,17 +42,17 @@ export default class LinkBuilder extends BaseBuilder {
   private linkDestClosed: boolean = false;
   private linkDestParenthesisLevel: number = 0;
   private linkTitle: string = '';
+  private linkTitleSrc: string = '';
   private linkTitleType: string = undefined;
   private linkTitleClosed: boolean = false;
   private backslashEscapeActive: boolean = false;
 
-  private entityBuild: CustomEntityBuidler;
-
+  private entityBuilder: CustomEntityBuidler;
 
   constructor() {
     super();
     this.resetInnerState();
-    this.entityBuild = new CustomEntityBuidler();
+    this.entityBuilder = new CustomEntityBuidler();
   }
 
   private resetInnerState() {
@@ -61,6 +61,7 @@ export default class LinkBuilder extends BaseBuilder {
     this.linkDestParenthesisLevel = 0;
     this.linkDestClosed = false;
     this.linkTitle = '';
+    this.linkTitleSrc = '';
     this.linkTitleType = undefined;
     this.linkTitleClosed = false;
     this.backslashEscapeActive = false;
@@ -323,38 +324,72 @@ export default class LinkBuilder extends BaseBuilder {
   }
 
   parseLinkTitle(ch: string): boolean {
+    // a closed title accepts no more characters.
     if (this.linkTitleClosed) return false;
 
+    // decide the type from the first character
     if (this.linkTitle === '' && this.linkTitleType === undefined) {
       if (ch !== '(' && ch !== '"' && ch !== '\'') return false;
       this.linkTitleType = ch;
       return true;
     }
 
-    if (ch === '\\' && !this.backslashEscapeActive) {
-      this.backslashEscapeActive = true;
-      return true;
-    }
-
+    // any unescaped '(' is not acceptable
     const pre = this.linkTitleType;
-    if (!this.backslashEscapeActive &&
-      (pre === '"' && ch === '"' || pre === '\'' && ch === '\'' || pre === '(' && ch === ')')
-    ) {
-      this.linkTitleClosed = true;
-      return true;
+    if (pre === '(' && ch === '(' && !this.backslashEscapeActive) return false;
+
+    // process character
+    this.linkTitleSrc += ch;
+    const srcLen = this.linkTitleSrc.length;
+
+    for (let offset = srcLen - 1; offset < srcLen;) {
+      const ch = this.linkTitleSrc.charAt(offset);
+
+      // activate backslash escape state
+      if (ch === '\\' && !this.backslashEscapeActive) {
+        this.backslashEscapeActive = true;
+        offset++;
+        continue;
+      }
+
+      this.entityBuilder.appendChar = (ch: string) => {
+        this.linkTitle += ch;
+      }
+
+      if (!this.backslashEscapeActive && (pre === '"' && ch === '"' || pre === '\'' && ch === '\'' || pre === '(' && ch === ')')) {
+        const cmd = this.entityBuilder.feed('\0', offsetToPosition(srcLen), null);
+        if (cmd && cmd.use) {
+          // keep silent
+        } else {
+          this.linkTitleClosed = true;
+          return true;
+        }
+        offset = cmd && cmd.moveTo ? cmd.moveTo.offset : offset + 1;
+        this.backslashEscapeActive = false;
+        continue;
+      }
+
+      const cmd = this.entityBuilder.feed(ch, offsetToPosition(offset), null);
+      if (cmd && cmd.use) {
+        // keep silent
+      } else {
+        this.linkTitle += (this.backslashEscapeActive && !isEscapableChar(ch) ? '\\' : '') + ch;
+      }
+      offset = cmd && cmd.moveTo ? cmd.moveTo.offset : offset + 1;
+      this.backslashEscapeActive = false;
     }
 
-    if (pre === '(' && ch === '(' && !this.backslashEscapeActive) {
-      return false;
-    }
-
-    // this.entityBuild.feed(ch, null, null);
-    this.linkTitle += (this.backslashEscapeActive && !isEscapableChar(ch) ? '\\' : '') + ch;
-
-    this.backslashEscapeActive = false;
+    // this.backslashEscapeActive = false;
     return true;
+
   }
 }
 
+
+/* utils */
+
+function offsetToPosition(offset: number) {
+  return new Position(new Point(1, 1, offset));
+}
 
 
