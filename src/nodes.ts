@@ -202,5 +202,18 @@ export class CodeSpanNode extends Node {
   value: string = '';
 }
 
+export enum AutolinkType { URI = 'URI', Email = 'email' };
+
+export class AutolinkNode extends Node {
+  dest: string;
+  linkType: AutolinkType;
+
+  constructor(position: Position, dest: string = '', type: AutolinkType = AutolinkType.URI) {
+    super('autolink', position);
+    this.dest = dest;
+    this.linkType = type;
+  }
+}
+
 export default Node;
 export { Position, Point };

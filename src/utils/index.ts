@@ -84,7 +84,7 @@ export function repeatChar(pattern: string, count: number) {
   return result + pattern;
 }
 
-export function isUnicodeWhitespaceChar(str: string) {
+export function isUnicodeWhitespaceChar(str: string): boolean {
   /**
    * Reference
    * https://en.wikipedia.org/wiki/Unicode_character_property#General_Category
@@ -96,24 +96,28 @@ export function isUnicodeWhitespaceChar(str: string) {
     0x2000 <= c&&c <= 0x200a || c === 0x202f || c === 0x205f || c === 0x3000
 }
 
-export function isWhitespaceChar(str: string) {
+export function isWhitespaceChar(str: string): boolean {
   return str === '\t' || str === ' ' || str === '\v' || str === '\r' || str === '\n' || str === '\f';
 }
 
-export function isASCIIPunctuationChar(str: string) {
+export function isASCIIPunctuationChar(str: string): boolean {
   const c = str.charCodeAt(0);
   return 0x21 <= c&&c <= 0x2f || 0x3a <= c&&c <= 0x40 || 0x5b <= c&&c <= 0x60 || 0x7b <= c&&c <= 0x7e;
 }
 
-export function isPunctuationChar(str: string) {
+export function isPunctuationChar(str: string): boolean {
   // [TODO] // or anything in the Unicode categories Pc, Pd, Pe, Pf, Pi, Po, or Ps.
   // https://github.com/commonmark/commonmark.js/blob/master/lib/inlines.js#L39
   return isASCIIPunctuationChar(str);
 }
 
-export function isASCIIControlChar(str: string) {
+export function isASCIIControlChar(str: string): boolean {
   const c = str.charCodeAt(0);
   return c <= 31 || c === 127;
+}
+
+export function isControlChar(str: string): boolean {
+  return isASCIIControlChar(str); // [TODO]
 }
 
 export function isASCIISpace(str: string): boolean {

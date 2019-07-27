@@ -33,6 +33,7 @@ export default function parseInline(src: string = '') {
     { id: 'emphasis_pre', build: builds.emphasis, method: 'preFeed' },
     // { id: 'link_pre', build: builds.link, method: 'preFeed' },
     { id: 'code_span', build: builds.code_span, method: 'feed' },
+    { id: 'autolink', build: builds.autolink, method: 'feed' },
     { id: 'link', build: builds.link, method: 'feed' },
     { id: 'emphasis', build: builds.emphasis, method: 'feed' },
     { id: 'entity', build: builds.entity, method: 'feed' },

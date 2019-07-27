@@ -4,6 +4,7 @@ import EmphasisBuilder from './emphasis';
 import LinkBuilder from './link';
 import EntityBuidler from './entity';
 import CodeSpanBuilder from './code-span';
+import AutolinkBuilder from './autolink';
 
 
 /**
@@ -18,6 +19,7 @@ const exportedBuilders = {
   text: TextBuilder,
   entity: EntityBuidler,
   code_span: CodeSpanBuilder,
+  autolink: AutolinkBuilder,
 };
 
 export default exportedBuilders;
