@@ -170,9 +170,4 @@ export default class CodeSpanBuilder extends BaseBuilder {
       return;
     }
   }
-
-  readCode(ch: string, isLastChar: boolean = false) {
-  }
 }
-
-

@@ -3,6 +3,7 @@ import { Position, Point, isASCIISpace, isASCIIControlChar, isWhitespaceChar, is
 import Node, { LinkNode } from "../nodes";
 import { CustomEntityBuidler } from "./entity";
 import { BuildCommand } from "../cmd";
+import { entityUtils } from '../utils';
 
 enum ScanState {
   None,
@@ -226,8 +227,8 @@ export default class LinkBuilder extends BaseBuilder {
 
     if (this.scanState === ScanState.EndParenthesis) {
       const node = new LinkNode(position);
-      node.dest = this.linkDest;
-      node.title = this.linkTitle;
+      node.dest = entityUtils.decodeHTMLStrict(this.linkDest);
+      node.title = this.linkTitle; // entityUtils.decodeHTMLStrict(this.linkTitleSrc);
       this.nodeToAppend = node;
       this.scanningStructure = this.processingLabel = true;
       this.scanEndPoint = position.start;
@@ -341,6 +342,9 @@ export default class LinkBuilder extends BaseBuilder {
     // process character
     this.linkTitleSrc += ch;
     const srcLen = this.linkTitleSrc.length;
+    this.entityBuilder.appendChar = (ch: string) => {
+      this.linkTitle += ch;
+    }
 
     for (let offset = srcLen - 1; offset < srcLen;) {
       const ch = this.linkTitleSrc.charAt(offset);
@@ -352,36 +356,32 @@ export default class LinkBuilder extends BaseBuilder {
         continue;
       }
 
-      this.entityBuilder.appendChar = (ch: string) => {
-        this.linkTitle += ch;
-      }
-
+      // whether meeting the ending
       if (!this.backslashEscapeActive && (pre === '"' && ch === '"' || pre === '\'' && ch === '\'' || pre === '(' && ch === ')')) {
         const cmd = this.entityBuilder.feed('\0', offsetToPosition(srcLen), null);
         if (cmd && cmd.use) {
-          // keep silent
+          offset = cmd && cmd.moveTo ? cmd.moveTo.offset : offset + 1;
+          this.backslashEscapeActive = false;
+          continue;
         } else {
+          this.backslashEscapeActive = false;
           this.linkTitleClosed = true;
           return true;
         }
+      } else {
+        const cmd = this.entityBuilder.feed(ch, offsetToPosition(offset), null);
+        if (cmd && cmd.use) {
+          // keep silent
+        } else {
+          this.linkTitle += (this.backslashEscapeActive && !isEscapableChar(ch) ? '\\' : '') + ch;
+        }
         offset = cmd && cmd.moveTo ? cmd.moveTo.offset : offset + 1;
         this.backslashEscapeActive = false;
-        continue;
       }
-
-      const cmd = this.entityBuilder.feed(ch, offsetToPosition(offset), null);
-      if (cmd && cmd.use) {
-        // keep silent
-      } else {
-        this.linkTitle += (this.backslashEscapeActive && !isEscapableChar(ch) ? '\\' : '') + ch;
-      }
-      offset = cmd && cmd.moveTo ? cmd.moveTo.offset : offset + 1;
-      this.backslashEscapeActive = false;
     }
 
     // this.backslashEscapeActive = false;
     return true;
-
   }
 }
 

@@ -1,4 +1,5 @@
-import Node, { TextNode } from "../nodes";
+import Node, { TextNode } from '../nodes';
+import entities from 'entities';
 
 export class Point {
   line: number;
@@ -122,3 +123,5 @@ export function isASCIISpace(str: string): boolean {
 export function isEscapableChar(c: string): boolean {
   return isASCIIPunctuationChar(c);
 }
+
+export const entityUtils = entities;
