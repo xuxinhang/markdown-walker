@@ -11,12 +11,12 @@ export default function render(root) {
   let accu = '';
   if (root.type === 'link') {
     accu += '<a';
-    accu += ` href="${encodeURI(replaceEntityChars(root.dest))}"`;
+    accu += ` href="${processLinkDest(root.dest)}"`;
     accu += root.title ? ` title="${replaceEntityChars(root.title)}"` : '';
     accu += '>';
   } else if (root.type === 'autolink') {
     const text = replaceEntityChars(root.dest);
-    const href = encodeURI(text);
+    const href = processLinkDest(root.dest);
     accu += `<a href="${root.linkType === 'email' ? 'mailto:' + href : href}">${text}</a>`;
   } else {
     accu += openTag;
@@ -48,4 +48,8 @@ function replaceEntityChars(s: string): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+function processLinkDest(dest: string): string {
+  return replaceEntityChars(encodeURI(decodeURI(dest)));
 }
