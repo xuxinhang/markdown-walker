@@ -76,7 +76,10 @@ export default class CodeSpanBuilder extends BaseBuilder {
         this.onlySpaceChars = this.onlySpaceChars && ch === ' ';
 
         if (!state.dryRun) {
-          if (isLastChar && !this.onlySpaceChars && ch === ' ' && this.activeNode.value.startsWith(' ')) {
+          if ((isLastChar && charToAppend === ' ') &&
+            !this.onlySpaceChars &&
+            this.activeNode.value.startsWith(' ')
+          ) {
             this.activeNode.value = this.activeNode.value.slice(1);
           } else {
             this.activeNode.value += charToAppend;
