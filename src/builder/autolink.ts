@@ -99,7 +99,9 @@ export default class AutolinkBuilder extends BaseBuilder {
           this.skipRangeEndOffset = skipOffset;
           return { use: true, moveTo: nextPoint };
         }
-        currentNode.appendChild(new AutolinkNode(position, this.destBuffer, type));
+        if (!state.dryRun) {
+          currentNode.appendChild(new AutolinkNode(position, this.destBuffer, type));
+        }
         const nextPoint = new Point(1, 1, this.rightAngleOffset + 1);
         this.resetInnerState();
         return { use: true, moveTo: nextPoint };
