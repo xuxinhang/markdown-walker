@@ -1,4 +1,7 @@
-import Node, { Point } from "./nodes";
+import Node, { Point, Position } from "./nodes";
+import Builder from './builder/_base';
+
+export type FocusRecordID = number;
 
 export interface BuildCommandObject {
   node?: Node;
@@ -9,11 +12,14 @@ export interface BuildCommandObject {
   moveTo?: Point;
   end?: boolean; // [TODO]
   dryRun?: boolean;
+  focus?: boolean,
+  cancelFocus?: FocusRecordID;
+  monopoly?: boolean;
 }
 
 export type BuildCommand = undefined | null | BuildCommandObject;
 
-export const defaultBuildCommand = {
+export const defaultBuildCommand: BuildCommand = {
   node: undefined,
   use: false,
   useChar: undefined,
@@ -22,11 +28,52 @@ export const defaultBuildCommand = {
   moveTo: undefined,
   end: undefined,
   dryRun: undefined,
+  focus: undefined,
+  cancelFocus: undefined,
+  monopoly: undefined,
 };
+
+
+export interface BuildMap {
+  [name: string]: Builder;
+}
+
+export interface BuildExecutor {
+  id: string;
+  build: Builder;
+  method: string;
+  precedence?: number;
+}
 
 export interface BuildState {
   node: Node;
   dryRun: boolean;
   end: boolean;
+  focusRecords: FocusRecordStack;
 }
 
+/**
+ * @class build exec call record stack
+ */
+export interface FocusRecord {
+  executor: BuildExecutor;
+  point: Point;
+  position: Position;
+}
+
+export class FocusRecordStack {
+  public stack: Array<FocusRecord> = [];
+  public get last(): FocusRecord {
+    return this.stack[this.stack.length - 1];
+  }
+  public push(executor: BuildExecutor, position: Position) {
+    return this.stack.push({
+      executor,
+      point: position.start,
+      position,
+    });
+  }
+  public pop() {
+    return this.stack.pop();
+  }
+}

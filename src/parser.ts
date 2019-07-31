@@ -1,46 +1,45 @@
 import Node, { RootNode } from './nodes';
 import { Position, Point } from './utils';
 import builders from './builder';
-import Builder from './builder/_base';
-import { BuildCommand, defaultBuildCommand, BuildState } from './cmd';
-
-interface BuildMap {
-  [name: string]: Builder;
-}
-
-interface BuildCall {
-  id: string;
-  build: Builder;
-  method: string;
-}
+import {
+  BuildCommand, defaultBuildCommand,
+  FocusRecordStack, BuildState,
+  BuildMap, BuildExecutor,
+} from './cmd';
 
 export default function parseInline(src: string = '') {
-  let point: Point = new Point(1, 1, 0);
+  // initial state varibles
+  let point: Point;
+  let position: Position;
   let currentNode: Node;
   let endFlag: boolean = false; // if true, ternimate the parsing process
   let dryRunMode: boolean = false;
+  setPoint(new Point(1, 1, 0));
+  // initial a build record stack
+  const focusRecordStack = new FocusRecordStack();
+  let monopolyMode: boolean = false;
 
-  let position = new Position(point, point);
-  var tree = new RootNode(position);
-  currentNode = tree;
-
+  // prepare the build executor list
   const builds: BuildMap = {};
   for (let [name, builder] of Object.entries(builders)) {
     builds[name] = new builder();
   }
 
-  const buildCalls: BuildCall[] = [
-    { id: 'emphasis_pre', build: builds.emphasis, method: 'preFeed' },
-    // { id: 'link_pre', build: builds.link, method: 'preFeed' },
-    { id: 'code_span', build: builds.code_span, method: 'feed' },
-    { id: 'autolink', build: builds.autolink, method: 'feed' },
-    { id: 'link', build: builds.link, method: 'feed' },
-    { id: 'emphasis', build: builds.emphasis, method: 'feed' },
-    { id: 'entity', build: builds.entity, method: 'feed' },
-    { id: 'text', build: builds.text, method: 'feed' },
+  const executors: BuildExecutor[] = [
+    { id: 'emphasis_pre', build: builds.emphasis, method: 'preFeed', precedence: 3 },
+    { id: 'code_span', build: builds.code_span, method: 'feed', precedence: 9 },
+    { id: 'autolink', build: builds.autolink, method: 'feed', precedence: 9 },
+    { id: 'link', build: builds.link, method: 'feed', precedence: 5 },
+    { id: 'emphasis', build: builds.emphasis, method: 'feed', precedence: 3 },
+    { id: 'entity', build: builds.entity, method: 'feed', precedence: 1 },
+    { id: 'text', build: builds.text, method: 'feed', precedence: 0 },
   ];
+  const rootMockedExecutor: BuildExecutor = { id: 'text', build: null, method: '_' };
 
-  setPoint(new Point(1, 1, 0));
+  // insert a root node as the root node
+  var tree = new RootNode(position);
+  currentNode = tree;
+  focusRecordStack.push(rootMockedExecutor, position);
 
   // feed each char one by one
   while (point.offset >= 0) {
@@ -181,13 +180,16 @@ export default function parseInline(src: string = '') {
     let moveToNextPoint: boolean = true;
     let continueBuildChain: boolean = true;
 
-    for (const item of buildCalls) {
+    for (const exec of executors) {
+      if (monopolyMode && exec.id !== focusRecordStack.last.executor.id) continue;
+
       const state: BuildState = {
         node: currentNode,
         end: endFlag,
         dryRun: dryRunMode,
+        focusRecords: focusRecordStack,
       };
-      const rst: BuildCommand = item.build[item.method](ch, position, currentNode, endFlag, state);
+      const rst: BuildCommand = exec.build[exec.method](ch, position, currentNode, endFlag, state);
       const cmd = typeof rst === 'object' ? { ...defaultBuildCommand, ...rst } : defaultBuildCommand;
 
       if (cmd.use) {
@@ -214,7 +216,18 @@ export default function parseInline(src: string = '') {
         endFlag = cmd.end;
       }
       if (cmd.moveBy !== undefined) {
-        moveToNextPoint = cmd.moveBy;
+        moveToNextPoint = cmd.moveBy > 0;
+      }
+      if (cmd.focus !== undefined) {
+        if (cmd.focus) {
+          focusRecordStack.push(exec, position);
+        }
+      }
+      if (cmd.cancelFocus !== undefined) {
+        focusRecordStack.pop(); // [TODO]
+      }
+      if (cmd.monopoly !== undefined) {
+        monopolyMode = cmd.monopoly;
       }
 
       if (!continueBuildChain) break;
