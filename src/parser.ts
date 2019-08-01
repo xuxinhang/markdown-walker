@@ -18,6 +18,7 @@ export default function parseInline(src: string = '') {
   // initial a build record stack
   const focusRecordStack = new FocusRecordStack();
   let monopolyMode: boolean = false;
+  let monopolyExecId: string = '';
 
   // prepare the build executor list
   const builds: BuildMap = {};
@@ -181,7 +182,7 @@ export default function parseInline(src: string = '') {
     let continueBuildChain: boolean = true;
 
     for (const exec of executors) {
-      if (monopolyMode && exec.id !== focusRecordStack.last.executor.id) continue;
+      if (monopolyMode && exec.id !== monopolyExecId) continue;
 
       const state: BuildState = {
         node: currentNode,
@@ -227,7 +228,12 @@ export default function parseInline(src: string = '') {
         focusRecordStack.pop(); // [TODO]
       }
       if (cmd.monopoly !== undefined) {
-        monopolyMode = cmd.monopoly;
+        if (cmd.monopoly) {
+          monopolyMode = true;
+          monopolyExecId = exec.id;
+        } else {
+          monopolyMode = false;
+        }
       }
 
       if (!continueBuildChain) break;

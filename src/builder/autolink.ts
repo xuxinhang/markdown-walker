@@ -56,7 +56,7 @@ export default class AutolinkBuilder extends BaseBuilder {
         this.stage = BuildStage.Scan;
         this.leftAngleOffset = position.start.offset;
         this.leftAnglePoint = position.start;
-        return { use: true };
+        return { use: true, monopoly: true };
       }
       return;
     }
@@ -67,7 +67,7 @@ export default class AutolinkBuilder extends BaseBuilder {
         this.resetInnerState();
         this.skipActive = true;
         this.skipRangeEndOffset = position.start.offset;
-        return { use: true, moveTo: nextPoint };
+        return { use: true, moveTo: nextPoint, monopoly: false };
       }
 
       if (ch === '>') {
@@ -97,14 +97,14 @@ export default class AutolinkBuilder extends BaseBuilder {
           this.resetInnerState();
           this.skipActive = true;
           this.skipRangeEndOffset = skipOffset;
-          return { use: true, moveTo: nextPoint };
+          return { use: true, moveTo: nextPoint, monopoly: false };
         }
         if (!state.dryRun) {
           currentNode.appendChild(new AutolinkNode(position, this.destBuffer, type));
         }
         const nextPoint = new Point(1, 1, this.rightAngleOffset + 1);
         this.resetInnerState();
-        return { use: true, moveTo: nextPoint };
+        return { use: true, moveTo: nextPoint, monopoly: false };
       }
 
       this.destBuffer += ch;

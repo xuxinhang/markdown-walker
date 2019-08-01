@@ -1,5 +1,8 @@
 import Node, { TextNode } from '../nodes';
-export { default as entityUtils } from 'entities'; // HTML entity utils
+import _entityUtils from 'entities'; // HTML entity utils
+
+// @HACK: just for Typescript
+export const entityUtils = _entityUtils;
 
 export class Point {
   line: number;

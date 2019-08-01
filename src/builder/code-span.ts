@@ -89,7 +89,7 @@ export default class CodeSpanBuilder extends BaseBuilder {
         return { use: true };
       } else {
         this.resetReadModeState();
-        return { use: true, moveTo: this.endBacktickEndPoint };
+        return { use: true, moveTo: this.endBacktickEndPoint, monopoly: false };
       }
     }
 
@@ -118,11 +118,12 @@ export default class CodeSpanBuilder extends BaseBuilder {
     if (ch === '`') {
       if (this.backtickStrCount) {
         this.backtickStrCount++;
+        return { use: true };
       } else {
         this.backtickStrCount = 1;
         this.backtickStrBeginPoint = position.start;
+        return { use: true, monopoly: true };
       }
-      return { use: true };
     }
 
     if (ch === '\0') {
@@ -133,18 +134,18 @@ export default class CodeSpanBuilder extends BaseBuilder {
           this.activateSkipMode(this.codeValuePoint.offset);
           this.resetBacktickStrState();
           this.codeActive = false;
-          return { use: true, moveTo: this.beginBacktickPoint };
+          return { use: true, moveTo: this.beginBacktickPoint, monopoly: false };
         }
       } else if (this.backtickStrCount > 0) {
         this.activateSkipMode(position.start.offset);
         const skipBeginPoint = this.backtickStrBeginPoint;
         this.resetBacktickStrState();
-        return { use: true, moveTo: skipBeginPoint };
+        return { use: true, moveTo: skipBeginPoint, monopoly: false };
       } else if (this.codeActive) {
         this.activateSkipMode(this.codeValuePoint.offset);
         // this.resetBacktickStrState();
         this.codeActive = false;
-        return { use: true, moveTo: this.beginBacktickPoint };
+        return { use: true, moveTo: this.beginBacktickPoint, monopoly: false };
       } else {
         return;
       }
@@ -158,7 +159,7 @@ export default class CodeSpanBuilder extends BaseBuilder {
         this.activateSkipMode(position.start.offset);
         const skipBeginPoint = this.backtickStrBeginPoint;
         this.resetBacktickStrState();
-        return { use: true, moveTo: skipBeginPoint };
+        return { use: true, moveTo: skipBeginPoint, monopoly: false };
       }
     } else if (this.backtickStrCount > 0) {
       this.beginBacktickCount = this.backtickStrCount;
