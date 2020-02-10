@@ -1,7 +1,7 @@
 import BaseBuilder from './_base';
 import { Point, Position, isUnicodeWhitespaceChar, isPunctuationChar, repeatChar } from '../utils';
 import Node, { EmphasisNode, StrongNode, TextNode } from '../nodes';
-import { BuildCommand } from '../cmd';
+import { BuildCommand, BuildState } from '../cmd';
 
 enum BulletType { LEFT = 2, RIGHT = 1, BOTH = 3, NEITHER = 0 };
 
@@ -62,7 +62,7 @@ export default class EmphasisBuilder extends BaseBuilder {
 
   /* main */
 
-  preFeed(ch: string, position: Position, currentNode: Node): BuildCommand {
+  preFeed(ch: string, position: Position, currentNode: Node, innerEnd: boolean, state: BuildState): BuildCommand {
     if (this.bulletCount && ch !== this.bulletChar) {
       // [N]
       this.bulletFollowedChar = ch;
@@ -123,6 +123,7 @@ export default class EmphasisBuilder extends BaseBuilder {
 
               currentNode = parent;
               backupCurrentNode = currentNode;
+              state.cancelFocus();
             } else {
               prevBulletCount = prevBulletCount - curtBulletCount; // > 0
               currentNode.bulletCount = prevBulletCount;
@@ -151,6 +152,7 @@ export default class EmphasisBuilder extends BaseBuilder {
           emNode.bulletCloseRunLength = undefined;
           emNode.bulletOpenCanBothOpenAndClose = bulletRunCanOpenNode && bulletRunCanCloseNode;
           currentNode.appendChild(emNode);
+          state.focus();
 
           currentNode = emNode;
         } else {

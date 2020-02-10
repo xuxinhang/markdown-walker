@@ -3,6 +3,8 @@ import Builder from './builder/_base';
 
 export type FocusRecordID = number;
 
+export type Precedence = number;
+
 export interface BuildCommandObject {
   node?: Node;
   use?: boolean;
@@ -50,6 +52,10 @@ export interface BuildState {
   dryRun: boolean;
   end: boolean;
   focusRecords: FocusRecordStack;
+  focus: () => void;
+  cancelFocus: () => void;
+  canCloseNode: () => boolean;
+  scheduleCloseNode: () => boolean;
 }
 
 /**

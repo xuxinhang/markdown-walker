@@ -102,7 +102,7 @@ export class Node {
   public appendText(text: string, position: Position): Node {
     // attach characters to tailed text node
     const tailNode = this.lastChild;
-    if (tailNode instanceof TextNode) {
+    if (tailNode instanceof TextNode && tailNode.allowAppendText) {
       tailNode.value += text;
       return;
     }
@@ -160,9 +160,11 @@ export class ParagraphNode extends Node {
 
 export class TextNode extends Node {
   value: string;
+  allowAppendText: boolean;
   constructor(value: string, position: Position) {
     super('text', position);
     this.value = value;
+    this.allowAppendText = true;
   }
 }
 
@@ -212,6 +214,12 @@ export class AutolinkNode extends Node {
     super('autolink', position);
     this.dest = dest;
     this.linkType = type;
+  }
+}
+
+export class StrikeNode extends Node {
+  constructor(position: Position) {
+    super('strike', position);
   }
 }
 

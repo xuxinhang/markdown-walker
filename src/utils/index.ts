@@ -130,3 +130,32 @@ export function isASCIISpace(str: string): boolean {
 export function isEscapableChar(c: string): boolean {
   return isASCIIPunctuationChar(c);
 }
+
+
+/* delimiter utils */
+
+export function isLeftFlankingDelimiterRun(preceded: string, followed: string): boolean {
+  const followedByUnicodeWhitespace = followed === '\0' || isUnicodeWhitespaceChar(followed);
+  const followedByPunctuationChar = isPunctuationChar(followed);
+  const precededByUnicodeWhitespace = isUnicodeWhitespaceChar(preceded);
+  const precededByPunctuationChar = isPunctuationChar(preceded);
+
+  return !followedByUnicodeWhitespace && // (1)
+    (!followedByPunctuationChar || // (2a)
+      (followedByPunctuationChar && (precededByUnicodeWhitespace || precededByPunctuationChar)) // (2b)
+    );
+}
+
+export function isRightFlankingDelimiterRun(preceded: string, followed: string) {
+  // the beginning and the end of the line count as Unicode whitespace.
+  const followedByUnicodeWhitespace = followed === '\0' || isUnicodeWhitespaceChar(followed);
+  const followedByPunctuationChar = isPunctuationChar(followed);
+  const precededByUnicodeWhitespace = isUnicodeWhitespaceChar(preceded);
+  const precededByPunctuationChar = isPunctuationChar(preceded);
+
+  return !precededByUnicodeWhitespace && // (1)
+    (!precededByPunctuationChar || // (2a)
+      (precededByPunctuationChar && (followedByUnicodeWhitespace || followedByPunctuationChar)) // (2b)
+    );
+}
+

@@ -4,7 +4,7 @@ import builders from './builder';
 import {
   BuildCommand, defaultBuildCommand,
   FocusRecordStack, BuildState,
-  BuildMap, BuildExecutor,
+  BuildMap, BuildExecutor, Precedence,
 } from './cmd';
 
 export default function parseInline(src: string = '') {
@@ -32,6 +32,7 @@ export default function parseInline(src: string = '') {
     { id: 'autolink', build: builds.autolink, method: 'feed', precedence: 9 },
     { id: 'link', build: builds.link, method: 'feed', precedence: 5 },
     { id: 'emphasis', build: builds.emphasis, method: 'feed', precedence: 3 },
+    { id: 'strike', build: builds.strike, method: 'feed', precedence: 3 },
     { id: 'entity', build: builds.entity, method: 'feed', precedence: 1 },
     { id: 'text', build: builds.text, method: 'feed', precedence: 0 },
   ];
@@ -180,8 +181,10 @@ export default function parseInline(src: string = '') {
   function feedChar2(ch: string, position: Position) {
     let moveToNextPoint: boolean = true;
     let continueBuildChain: boolean = true;
+    let scheduledCloseNode: boolean = false;
 
     for (const exec of executors) {
+      scheduledCloseNode = false;
       if (monopolyMode && exec.id !== monopolyExecId) continue;
 
       const state: BuildState = {
@@ -189,6 +192,20 @@ export default function parseInline(src: string = '') {
         end: endFlag,
         dryRun: dryRunMode,
         focusRecords: focusRecordStack,
+        focus() {
+          focusRecordStack.push(exec, position);
+        },
+        cancelFocus() {
+          focusRecordStack.pop();
+        },
+        canCloseNode() {
+          return focusRecordStack.last.executor.precedence <= exec.precedence;
+        },
+        scheduleCloseNode() {
+          const can = this.canCloseNode();
+          if (can) scheduledCloseNode = true;
+          return can;
+        },
       };
       const rst: BuildCommand = exec.build[exec.method](ch, position, currentNode, endFlag, state);
       const cmd = typeof rst === 'object' ? { ...defaultBuildCommand, ...rst } : defaultBuildCommand;
