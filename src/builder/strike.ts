@@ -82,16 +82,22 @@ export default class StrikeBuilder extends BaseBuilder {
         continue;
       }
 
+      if (!(currentNode instanceof StrikeNode)) {
+        state.requestClose(STRIKE_PRECEDENCE);
+        return;
+      }
+
       prevBullet.count -= 2;
       restBulletCount -= 2;
-      state.requestClose();
-      const node = new StrikeNode(position);
-      while (currentNode.children.length > prevBullet.nodeChildLength) {
-        const childNode = currentNode.children[prevBullet.nodeChildLength];
-        currentNode.removeChild(childNode);
-        node.appendChild(childNode);
-      }
-      currentNode.appendChild(node);
+
+      // const node = new StrikeNode(position);
+      // while (currentNode.children.length > prevBullet.nodeChildLength) {
+      //   const childNode = currentNode.children[prevBullet.nodeChildLength];
+      //   currentNode.removeChild(childNode);
+      //   node.appendChild(childNode);
+      // }
+      // currentNode.appendChild(node);
+      currentNode = currentNode.parentNode;
     }
 
     if (canOpenStrike && restBulletCount >= 2) {
@@ -105,7 +111,14 @@ export default class StrikeBuilder extends BaseBuilder {
         followedChar: this.bulletFollowedChar,
         nodeChildLength: currentNode.children.length,
       });
+
+      // append strike node
+      const node = new StrikeNode(position);
+      node.bulletCount = restBulletCount;
+      currentNode.appendChild(node);
+      currentNode = node;
       state.focus();
+
     } else {
       if (restBulletCount > 0) {
         currentNode.appendText('~'.repeat(restBulletCount), position);
@@ -120,8 +133,9 @@ export default class StrikeBuilder extends BaseBuilder {
     if (eol && this.bulletStack.length > 0) {
       const prevBullet = this.bulletStack[this.bulletStack.length - 1];
       if (prevBullet.count > 0) {
-        const refNode = currentNode.children[prevBullet.nodeChildLength];
-        currentNode.insertTextBefore(refNode, '~'.repeat(prevBullet.count), position);
+        // [TODO]
+        // const refNode = currentNode.children[prevBullet.nodeChildLength];
+        // currentNode.insertTextBefore(refNode, '~'.repeat(prevBullet.count), position);
       }
       this.bulletStack.pop();
       state.cancelFocus();
@@ -130,6 +144,7 @@ export default class StrikeBuilder extends BaseBuilder {
     return {
       // focus: true,
       // moveBy: false,
+      node: currentNode,
     };
   }
 }

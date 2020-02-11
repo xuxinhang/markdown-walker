@@ -5,6 +5,7 @@ import {
   BuildCommand, defaultBuildCommand,
   FocusRecordStack, BuildState,
   BuildMap, BuildExecutor, Precedence,
+  Token, TokenTypes,
 } from './cmd';
 
 export default function parseInline(src: string = '') {
@@ -43,8 +44,16 @@ export default function parseInline(src: string = '') {
   currentNode = tree;
   focusRecordStack.push(rootMockedExecutor, position);
 
+  // token queue
+  let tokenQueue: Token[] = [];
+
   // feed each char one by one
   while (point.offset >= 0) {
+    while (tokenQueue.length > 0) {
+      const tk = tokenQueue.shift();
+      feedChar2('', position, tk);
+    }
+
     const ch = src.charAt(point.offset);
     if (ch) {
       feedChar2(ch, position);
@@ -59,8 +68,7 @@ export default function parseInline(src: string = '') {
 
   return tree;
 
-  /*
-  function feedChar(ch: string, position: Position) {
+  /* function feedChar(ch: string, position: Position) {
     let continueBuildChain: boolean = true;
     let skipTextBuild: boolean = false;
     let moveToNextPoint: boolean = true;
@@ -175,12 +183,12 @@ export default function parseInline(src: string = '') {
         point.offset + 1
       ));
     }
-  }
   */
 
-  function feedChar2(ch: string, position: Position) {
+  function feedChar2(ch: string, position: Position, token?: Token) {
     let moveToNextPoint: boolean = true;
     let continueBuildChain: boolean = true;
+    let allowTextBuild: boolean = true;
     let scheduledCloseNode: boolean = false;
 
     for (const exec of executors) {
@@ -206,12 +214,20 @@ export default function parseInline(src: string = '') {
           if (can) scheduledCloseNode = true;
           return can;
         },
+        requestClose(precedence: Precedence) {
+          tokenQueue.push({
+            type: TokenTypes.RequestClose,
+            payload: { precedence },
+          });
+        },
       };
-      const rst: BuildCommand = exec.build[exec.method](ch, position, currentNode, endFlag, state);
+      if (exec.id === 'text' && !allowTextBuild) continue;
+      const rst: BuildCommand = exec.build[exec.method](ch, position, currentNode, endFlag, state, token);
       const cmd = typeof rst === 'object' ? { ...defaultBuildCommand, ...rst } : defaultBuildCommand;
 
       if (cmd.use) {
-        continueBuildChain = false;
+        allowTextBuild = false;
+        // continueBuildChain = false;
       }
       if (cmd.node !== undefined) {
         currentNode = cmd.node;

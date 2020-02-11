@@ -56,6 +56,7 @@ export interface BuildState {
   cancelFocus: () => void;
   canCloseNode: () => boolean;
   scheduleCloseNode: () => boolean;
+  requestClose: (precedence: Precedence) => void;
 }
 
 /**
@@ -83,3 +84,17 @@ export class FocusRecordStack {
     return this.stack.pop();
   }
 }
+
+export enum TokenTypes {
+  NewChar = 'NEW_CHAR',
+  RequestClose = 'REQUEST_CLOSE',
+}
+
+export interface Token {
+  type: TokenTypes;
+  payload: any;
+}
+
+
+
+

@@ -1,7 +1,7 @@
 import BaseBuilder from './_base';
 import { Point, Position, isUnicodeWhitespaceChar, isPunctuationChar, repeatChar } from '../utils';
 import Node, { EmphasisNode, StrongNode, TextNode } from '../nodes';
-import { BuildCommand, BuildState } from '../cmd';
+import { BuildCommand, BuildState, TokenTypes, Token } from '../cmd';
 
 enum BulletType { LEFT = 2, RIGHT = 1, BOTH = 3, NEITHER = 0 };
 
@@ -63,6 +63,7 @@ export default class EmphasisBuilder extends BaseBuilder {
   /* main */
 
   preFeed(ch: string, position: Position, currentNode: Node, innerEnd: boolean, state: BuildState): BuildCommand {
+    if (ch === '') return;
     if (this.bulletCount && ch !== this.bulletChar) {
       // [N]
       this.bulletFollowedChar = ch;
@@ -173,7 +174,7 @@ export default class EmphasisBuilder extends BaseBuilder {
     return { node: currentNode };
   }
 
-  feed(ch: string, position: Position, currentNode: Node): BuildCommand {
+  feed(ch: string, position: Position, currentNode: Node, innerEnd, state, token?: Token): BuildCommand {
     if (ch === '\\' && !this.backslashEscapeActive) {
       this.backslashEscapeActive = true;
       return;
@@ -203,8 +204,9 @@ export default class EmphasisBuilder extends BaseBuilder {
      *  =================================
      */
 
-    // if meet the end of line, just close the node. [C]
-    if (eol && (currentNode instanceof EmphasisNode)) {
+    // if meet the end of line or receive close request, just close the node. [C]
+    const toClose = eol || (token && token.type === TokenTypes.RequestClose);
+    if (toClose && (currentNode instanceof EmphasisNode)) {
       let parent = currentNode.parentNode;
       textifyNode(currentNode);
       return {

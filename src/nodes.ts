@@ -218,6 +218,7 @@ export class AutolinkNode extends Node {
 }
 
 export class StrikeNode extends Node {
+  bulletCount?: number;
   constructor(position: Position) {
     super('strike', position);
   }
