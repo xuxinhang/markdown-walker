@@ -63,7 +63,7 @@ export default class EmphasisBuilder extends BaseBuilder {
   /* main */
 
   preFeed(ch: string, position: Position, currentNode: Node, innerEnd: boolean, state: BuildState): BuildCommand {
-    if (ch === '') return;
+    if (ch === '') return { moveBy: false }; // there is a token [TODO]
     if (this.bulletCount && ch !== this.bulletChar) {
       // [N]
       this.bulletFollowedChar = ch;

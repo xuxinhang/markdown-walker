@@ -53,7 +53,6 @@ export function mergeNode (target: Node | null, source: Node | null) {
     target.value = target.value + source.value;
     return target;
   }
-
   return false;
 }
 
@@ -74,6 +73,16 @@ export function findParentNode (startNode: Node, fn: (node: Node) => boolean) {
   let node = startNode;
   while (node && !fn(node)) node = node.parentNode || null;
   return node;
+}
+
+export function yankChildNode (node: Node) {
+  if (!node.parentNode) {
+    throw 'The given node has no parent node.';
+  }
+  const parent = node.parentNode;
+  for (let child of node.children) parent.insertBefore(child, node);
+  parent.removeChild(node);
+  return parent;
 }
 
 export function repeatChar(pattern: string, count: number) {
@@ -135,6 +144,10 @@ export function isEscapableChar(c: string): boolean {
 /* delimiter utils */
 
 export function isLeftFlankingDelimiterRun(preceded: string, followed: string): boolean {
+  // "the beginning and the end of the line count as Unicode whitespace."
+  preceded = preceded === '' ? ' ' : preceded;
+  followed = followed === '' ? ' ' : followed;
+
   const followedByUnicodeWhitespace = followed === '\0' || isUnicodeWhitespaceChar(followed);
   const followedByPunctuationChar = isPunctuationChar(followed);
   const precededByUnicodeWhitespace = isUnicodeWhitespaceChar(preceded);
@@ -147,7 +160,10 @@ export function isLeftFlankingDelimiterRun(preceded: string, followed: string): 
 }
 
 export function isRightFlankingDelimiterRun(preceded: string, followed: string) {
-  // the beginning and the end of the line count as Unicode whitespace.
+  // "the beginning and the end of the line count as Unicode whitespace."
+  preceded = preceded === '' ? ' ' : preceded;
+  followed = followed === '' ? ' ' : followed;
+
   const followedByUnicodeWhitespace = followed === '\0' || isUnicodeWhitespaceChar(followed);
   const followedByPunctuationChar = isPunctuationChar(followed);
   const precededByUnicodeWhitespace = isUnicodeWhitespaceChar(preceded);

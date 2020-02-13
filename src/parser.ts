@@ -30,7 +30,7 @@ export default function parseInline(src: string = '') {
   const executors: BuildExecutor[] = [
     { id: 'emphasis_pre', build: builds.emphasis, method: 'preFeed', precedence: 3 },
     { id: 'code_span', build: builds.code_span, method: 'feed', precedence: 9 },
-    { id: 'autolink', build: builds.autolink, method: 'feed', precedence: 9 },
+    { id: 'autolink', build: builds.autolink, method: 'feed', precedence: 9 }, // [TODO]
     { id: 'link', build: builds.link, method: 'feed', precedence: 5 },
     { id: 'emphasis', build: builds.emphasis, method: 'feed', precedence: 3 },
     { id: 'strike', build: builds.strike, method: 'feed', precedence: 3 },
@@ -56,11 +56,15 @@ export default function parseInline(src: string = '') {
 
     const ch = src.charAt(point.offset);
     if (ch) {
-      feedChar2(ch, position);
+      feedChar2(ch, position, { type: TokenTypes.NextChar, payload: { char: ch } });
     } else {
       // feed NULL character as end mark until all nodes are closed
-      feedChar2('\0', position);
-      if (endFlag) { // && (currentNode instanceof RootNode)) {
+      const requestCloseToken: Token = {
+        type: TokenTypes.RequestClose,
+        payload: { precedence: 9999 },
+      };
+      feedChar2('\0', position, requestCloseToken);
+      if (/* endFlag || */ (currentNode instanceof RootNode)) {
         break;
       }
     }

@@ -56,7 +56,7 @@ export default class AutolinkBuilder extends BaseBuilder {
         this.stage = BuildStage.Scan;
         this.leftAngleOffset = position.start.offset;
         this.leftAnglePoint = position.start;
-        return { use: true, monopoly: true };
+        return { use: true, monopoly: false };
       }
       return;
     }
@@ -78,7 +78,7 @@ export default class AutolinkBuilder extends BaseBuilder {
         return { use: true, moveTo: nextPoint };
       }
 
-      return { use: true };
+      return { use: true, monopoly: true };
     }
 
     if (this.stage === BuildStage.Read) {

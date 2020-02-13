@@ -86,13 +86,13 @@ export class FocusRecordStack {
 }
 
 export enum TokenTypes {
-  NewChar = 'NEW_CHAR',
+  NextChar = 'NEXT_CHAR',
   RequestClose = 'REQUEST_CLOSE',
 }
 
 export interface Token {
   type: TokenTypes;
-  payload: any;
+  payload?: any;
 }
 
 

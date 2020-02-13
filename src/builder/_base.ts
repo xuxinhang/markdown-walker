@@ -1,6 +1,6 @@
 import { Position } from '../utils';
 import Node from '../nodes';
-import { BuildState, BuildCommand } from '../cmd';
+import { BuildState, BuildCommand, Token } from '../cmd';
 
 /**
  * @class the buidler base class
@@ -9,7 +9,7 @@ import { BuildState, BuildCommand } from '../cmd';
 export default class BaseBuilder {
   [props: string]: any;
 
-  feed(ch: string, position: Position, currentNode?: Node, innerEnd?: boolean, state?: BuildState): BuildCommand {
+  feed(ch: string, position: Position, currentNode?: Node, innerEnd?: boolean, state?: BuildState, token?: Token): BuildCommand {
     return { /* NONE */ };
   }
 
