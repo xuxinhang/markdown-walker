@@ -6,7 +6,7 @@ import EntityBuidler from './entity';
 import CodeSpanBuilder from './code-span';
 import AutolinkBuilder from './autolink';
 import StrikeBuilder from './strike';
-
+import MarkBuilder from './mark';
 
 /**
  * @exports - builder classes
@@ -22,6 +22,7 @@ const exportedBuilders = {
   code_span: CodeSpanBuilder,
   autolink: AutolinkBuilder,
   strike: StrikeBuilder,
+  mark: MarkBuilder,
 };
 
 export default exportedBuilders;

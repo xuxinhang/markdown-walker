@@ -1,12 +1,13 @@
 import BaseBuilder from "./_base";
 import {
   Point, Position,
-  isRightFlankingDelimiterRun, isLeftFlankingDelimiterRun, findParentNode, yankChildNode,
+  isRightFlankingDelimiterRun, isLeftFlankingDelimiterRun, findParentNode, yankChildNode, moveAllChildren,
 } from "../utils";
 import { Node, TextNode, StrikeNode } from '../nodes';
 import { BuildState, BuildCommand, Token, TokenTypes } from "../cmd";
 
 const STRIKE_PRECEDENCE = 3;
+const BUILDER_ID = 'strike';
 
 interface BulletItem {
   count: number;
@@ -47,6 +48,27 @@ export default class StrikeBuilder extends BaseBuilder {
   }
 
   feed(ch: string, position: Position, currentNode: Node, innerEnd: boolean, state: BuildState, token: Token): BuildCommand {
+    // if there is a close request ...
+    const haveToClose = /* ch === '\0' || */ token && token.type === TokenTypes.RequestClose;
+    if (haveToClose) {
+      if ((currentNode instanceof StrikeNode)) {
+        const prevBulletCount = currentNode.bulletCount;
+        const parent = currentNode.parentNode;
+        if (prevBulletCount > 0) {
+          parent.insertTextBefore(currentNode, '~'.repeat(prevBulletCount), position);
+          yankChildNode(currentNode);
+          // const refNode = currentNode.children[prevBullet.nodeChildLength];
+          // currentNode.insertTextBefore(refNode, '~'.repeat(prevBulletCount), position);
+        }
+        currentNode = parent;
+        // this.bulletStack.pop();
+        state.cancelFocus();
+
+        return { node: currentNode };
+      }
+      return;
+    }
+
     // if the char is ~
     if (ch === '~') {
       if (this.bulletCount) {
@@ -73,34 +95,35 @@ export default class StrikeBuilder extends BaseBuilder {
         if (!nearestStrikeNode) break;
 
         if (!(currentNode instanceof StrikeNode)) {
-          state.requestClose(STRIKE_PRECEDENCE);
+          state.requestClose(STRIKE_PRECEDENCE, BUILDER_ID);
           return;
         }
 
-        // const prevBullet = this.bulletStack[this.bulletStack.length - 1];
         let prevBulletCount = currentNode.bulletCount;
+
+        if (prevBulletCount >= 2) {
+          const node = new StrikeNode(position);
+          moveAllChildren(currentNode, node);
+          currentNode.appendChild(node);
+
+          prevBulletCount -= 2;
+          restBulletCount -= 2;
+          currentNode.bulletCount = prevBulletCount;
+        }
+
         if (prevBulletCount < 2) {
           if (prevBulletCount > 0) {
             // add the character before the node
             const text = '~'.repeat(prevBulletCount);
             currentNode.insertTextBefore(currentNode.firstChild, text, position);
-            // remove the empty node
-            // const parent = currentNode.parentNode;
-            // for (let child of currentNode.children) parent.insertBefore(child, currentNode);
-            // parent.removeChild(currentNode);
-            yankChildNode(currentNode);
           }
-          // this.bulletStack.pop();
-          state.cancelFocus();
-          continue;
+
+          const parentNode = currentNode.parentNode;
+          yankChildNode(currentNode);
+          prevBulletCount = 0;
+          restBulletCount -= prevBulletCount;
+          currentNode = parentNode;
         }
-
-        // else, minus bullet counter and jump to parent node
-        prevBulletCount -= 2;
-        restBulletCount -= 2;
-
-        currentNode.bulletCount = prevBulletCount;
-        currentNode = currentNode.parentNode;
       }
 
       if (canOpenStrike && restBulletCount >= 2) {
@@ -137,21 +160,6 @@ export default class StrikeBuilder extends BaseBuilder {
     this.resetBullet();
     this.bulletPrecededChar = ch;
 
-    // if there is a close request ...
-    const haveToClose = ch === '\0' || token && token.type === TokenTypes.RequestClose;
-    if (haveToClose && (currentNode instanceof StrikeNode)) {
-      const prevBulletCount = currentNode.bulletCount;
-      const parent = currentNode.parentNode;
-      if (prevBulletCount > 0) {
-        parent.insertTextBefore(currentNode, '~'.repeat(prevBulletCount), position);
-        yankChildNode(currentNode);
-        // const refNode = currentNode.children[prevBullet.nodeChildLength];
-        // currentNode.insertTextBefore(refNode, '~'.repeat(prevBulletCount), position);
-      }
-      currentNode = parent;
-      // this.bulletStack.pop();
-      state.cancelFocus();
-    }
 
     return {
       // focus: true,

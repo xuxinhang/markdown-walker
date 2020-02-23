@@ -224,5 +224,12 @@ export class StrikeNode extends Node {
   }
 }
 
+export class MarkNode extends Node {
+  bulletCount?: number;
+  constructor(position: Position) {
+    super('mark', position);
+  }
+}
+
 export default Node;
 export { Position, Point };

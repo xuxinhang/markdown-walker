@@ -42,6 +42,7 @@ const tags = {
   root: ['<p>', '</p>\n'],
   codeSpan: ['<code>', '</code>'],
   strike: ['<s>', '</s>'],
+  mark: ['<mark>', '</mark>'],
 };
 
 function replaceEntityChars(s: string): string {

@@ -56,7 +56,7 @@ export interface BuildState {
   cancelFocus: () => void;
   canCloseNode: () => boolean;
   scheduleCloseNode: () => boolean;
-  requestClose: (precedence: Precedence) => void;
+  requestClose: (precedence: Precedence, source?: any) => void;
 }
 
 /**
@@ -93,8 +93,7 @@ export enum TokenTypes {
 export interface Token {
   type: TokenTypes;
   payload?: any;
+  // source?: string;
 }
-
-
 
 

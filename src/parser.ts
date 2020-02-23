@@ -34,6 +34,7 @@ export default function parseInline(src: string = '') {
     { id: 'link', build: builds.link, method: 'feed', precedence: 5 },
     { id: 'emphasis', build: builds.emphasis, method: 'feed', precedence: 3 },
     { id: 'strike', build: builds.strike, method: 'feed', precedence: 3 },
+    { id: 'mark', build: builds.mark, method: 'feed', precedence: 3 },
     { id: 'entity', build: builds.entity, method: 'feed', precedence: 1 },
     { id: 'text', build: builds.text, method: 'feed', precedence: 0 },
   ];
@@ -63,7 +64,10 @@ export default function parseInline(src: string = '') {
         type: TokenTypes.RequestClose,
         payload: { precedence: 9999 },
       };
-      feedChar2('\0', position, requestCloseToken);
+      feedChar2('\0', position, { type: TokenTypes.NextChar, payload: { char: '\0' } });
+      if (tokenQueue.length === 0) {
+        feedChar2('\0', position, requestCloseToken);
+      }
       if (/* endFlag || */ (currentNode instanceof RootNode)) {
         break;
       }
@@ -72,7 +76,8 @@ export default function parseInline(src: string = '') {
 
   return tree;
 
-  /* function feedChar(ch: string, position: Position) {
+  /*
+  function feedChar(ch: string, position: Position) {
     let continueBuildChain: boolean = true;
     let skipTextBuild: boolean = false;
     let moveToNextPoint: boolean = true;
@@ -187,10 +192,11 @@ export default function parseInline(src: string = '') {
         point.offset + 1
       ));
     }
+  }
   */
 
   function feedChar2(ch: string, position: Position, token?: Token) {
-    let moveToNextPoint: boolean = true;
+    let moveToNextPoint: boolean = token.type === TokenTypes.NextChar ? true : false;
     let continueBuildChain: boolean = true;
     let allowTextBuild: boolean = true;
     let scheduledCloseNode: boolean = false;
@@ -218,10 +224,10 @@ export default function parseInline(src: string = '') {
           if (can) scheduledCloseNode = true;
           return can;
         },
-        requestClose(precedence: Precedence) {
+        requestClose(precedence: Precedence, source?: any) {
           tokenQueue.push({
             type: TokenTypes.RequestClose,
-            payload: { precedence },
+            payload: { precedence, source },
           });
         },
       };

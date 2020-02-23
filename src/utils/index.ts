@@ -77,12 +77,18 @@ export function findParentNode (startNode: Node, fn: (node: Node) => boolean) {
 
 export function yankChildNode (node: Node) {
   if (!node.parentNode) {
-    throw 'The given node has no parent node.';
+    throw '[yankChildNode] The given node has no parent node.';
   }
   const parent = node.parentNode;
   for (let child of node.children) parent.insertBefore(child, node);
   parent.removeChild(node);
   return parent;
+}
+
+export function moveAllChildren(fromNode: Node, toNode: Node) {
+  while (fromNode.firstChild) {
+    toNode.appendChild(fromNode.removeChild(fromNode.firstChild));
+  }
 }
 
 export function repeatChar(pattern: string, count: number) {
