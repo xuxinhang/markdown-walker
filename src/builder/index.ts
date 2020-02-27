@@ -3,7 +3,7 @@ import TextBuilder from './text';
 import EmphasisBuilder from './emphasis';
 import LinkBuilder from './link';
 import EntityBuidler from './entity';
-import CodeSpanBuilder from './code-span';
+import CodeSpanBuilder from './code-span-v2';
 import AutolinkBuilder from './autolink';
 import StrikeBuilder from './strike';
 import MarkBuilder from './mark';

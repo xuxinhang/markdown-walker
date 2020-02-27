@@ -202,6 +202,8 @@ export class CodeSpanNode extends Node {
     this.value = value;
   }
   value: string = '';
+  backtickRunCount: number = 0;
+  contentCache: string = '';
 }
 
 export enum AutolinkType { URI = 'URI', Email = 'email' };

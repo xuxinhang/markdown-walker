@@ -1,20 +1,20 @@
 import BaseBuilder from './_base';
 import { Point, Position } from '../utils';
 import Node, { CodeSpanNode } from '../nodes';
-import { BuildState, BuildCommand } from '../cmd';
+import { BuildState, BuildCommand, Token, TokenTypes } from '../cmd';
 
 export default class CodeSpanBuilder extends BaseBuilder {
-  backtickStrCount: number;
-  backtickStrBeginPoint: Point;
-  backtickStrEndPoint: Point;
+  backtickRunCount: number;
+  backtickRunBeginPoint: Point;
+  backtickRunEndPoint: Point;
+  codeSpanContentCache: string;
 
-  codeActive: boolean;
-  beginBacktickCount: number;
-  beginBacktickPoint: Point;
+  codeSpanActive: boolean;
+  backtickBeginRunCount: number;
+  backtickBeginRunPoint: Point;
   codeValuePoint: Point;
-  endBacktickPoint: Point;
-  endBacktickOffset: number;
-  endBacktickEndPoint: Point;
+  backtickEndRunPoint: Point;
+  backtickEndRunOffset: number;
 
   skipMode: boolean;
   skipBeginOffset: number;
@@ -30,15 +30,16 @@ export default class CodeSpanBuilder extends BaseBuilder {
   }
 
   private resetInnerState() {
-    this.codeActive = false;
-    this.beginBacktickPoint = null;
-    this.beginBacktickCount = 0;
+    this.codeSpanActive = false;
+    this.backtickBeginRunPoint = null;
+    this.backtickBeginRunCount = 0;
+    this.codeSpanContentCache = '';
     this.codeValuePoint = null;
-    this.endBacktickPoint = null;
-    this.endBacktickOffset = -1;
-    this.endBacktickEndPoint = null;
+    this.backtickEndRunPoint = null;
+    this.backtickEndRunOffset = -1;
+    this.backtickEndRunPoint = null;
 
-    this.resetBacktickStrState();
+    this.resetBacktickRunState();
     this.resetSkipModeState();
     this.resetReadModeState();
   }
@@ -48,10 +49,10 @@ export default class CodeSpanBuilder extends BaseBuilder {
     this.skipEndOffset = endOffset;
   }
 
-  private resetBacktickStrState() {
-    this.backtickStrCount = 0;
-    this.backtickStrBeginPoint = null;
-    this.backtickStrEndPoint = null;
+  private resetBacktickRunState() {
+    this.backtickRunCount = 0;
+    this.backtickRunBeginPoint = null;
+    this.backtickRunEndPoint = null;
   }
 
   private resetReadModeState() {
@@ -66,9 +67,15 @@ export default class CodeSpanBuilder extends BaseBuilder {
     this.skipEndOffset = 0;
   }
 
-  feed(ch: string, position: Position, currentNode: Node, innerEnd: boolean, state: BuildState): BuildCommand {
+  private appendToContentCache (ch) {
+    this.codeSpanContentCache += ch;
+  }
+
+  feed(ch: string, position: Position, currentNode: Node, innerEnd: boolean, state: BuildState, token: Token): BuildCommand {
+    ch = token.type === TokenTypes.NextChar ? token.payload.char : '\0';
+
     if (this.readMode) {
-      const offsetDiff = this.endBacktickOffset - position.start.offset;
+      const offsetDiff = this.backtickEndRunOffset - position.start.offset;
       if (offsetDiff > 0) {
         // [TODO]: the line endings contain \r\n, which is ignored here.
         const isLastChar = offsetDiff === 1;
@@ -89,13 +96,13 @@ export default class CodeSpanBuilder extends BaseBuilder {
         return { use: true };
       } else {
         this.resetReadModeState();
-        return { use: true, moveTo: this.endBacktickEndPoint, monopoly: false };
+        return { use: true, moveTo: this.backtickEndRunPoint, monopoly: false };
       }
     }
 
     if (this.skipMode) {
       if (position.start.offset < this.skipEndOffset) {
-        return { use: this.codeActive ? true : false };
+        return { use: this.codeSpanActive ? true : false };
       }
       this.resetSkipModeState(); // and then continue
     }
@@ -107,71 +114,92 @@ export default class CodeSpanBuilder extends BaseBuilder {
       }
 
       this.readMode = true;
-      this.endBacktickOffset = this.backtickStrBeginPoint.offset;
-      this.endBacktickEndPoint = position.start;
+      this.backtickEndRunOffset = this.backtickRunBeginPoint.offset;
+      this.backtickEndRunPoint = position.start;
 
-      this.codeActive = false;
-      this.resetBacktickStrState();
+      this.codeSpanActive = false;
+      this.resetBacktickRunState();
       return { use: true, moveTo: this.codeValuePoint };
     }
 
-    if (ch === '`') {
-      if (this.backtickStrCount) {
-        this.backtickStrCount++;
-        return { use: true };
-      } else {
-        this.backtickStrCount = 1;
-        this.backtickStrBeginPoint = position.start;
-        return { use: true, monopoly: true };
-      }
+    const createCodeSpanNodeUsingContent = (content: string) => {
+      const node = new CodeSpanNode(position);
+      currentNode.appendChild(node);
+      node.value = content;
     }
 
+    // Never accept RequestClose Token
+    // if (token.type === TokenTypes.RequestClose) { ...
+
     if (ch === '\0') {
-      if (this.backtickStrCount > 0 && this.codeActive) {
-        if (this.beginBacktickCount === this.backtickStrCount) {
+      if (this.backtickRunCount > 0 && this.codeSpanActive) {
+        if (this.backtickBeginRunCount === this.backtickRunCount) {
           return createAndFillCodeSpanNode();
         } else {
           this.activateSkipMode(this.codeValuePoint.offset);
-          this.resetBacktickStrState();
-          this.codeActive = false;
-          return { use: true, moveTo: this.beginBacktickPoint, monopoly: false };
+          this.codeSpanActive = false;
+          this.resetBacktickRunState();
+          return { use: true, moveTo: this.backtickBeginRunPoint, monopoly: false };
         }
-      } else if (this.backtickStrCount > 0) {
+      } else if (this.backtickRunCount > 0) {
         this.activateSkipMode(position.start.offset);
-        const skipBeginPoint = this.backtickStrBeginPoint;
-        this.resetBacktickStrState();
+        const skipBeginPoint = this.backtickRunBeginPoint;
+        this.resetBacktickRunState();
         return { use: true, moveTo: skipBeginPoint, monopoly: false };
-      } else if (this.codeActive) {
+      } else if (this.codeSpanActive) {
         this.activateSkipMode(this.codeValuePoint.offset);
-        // this.resetBacktickStrState();
-        this.codeActive = false;
-        return { use: true, moveTo: this.beginBacktickPoint, monopoly: false };
+        this.codeSpanActive = false;
+        return { use: true, moveTo: this.backtickBeginRunPoint, monopoly: false };
       } else {
         return;
       }
     }
 
-    // not a backtick char
-    if (this.backtickStrCount > 0 && this.codeActive){
-      if (this.beginBacktickCount === this.backtickStrCount) {
-        return createAndFillCodeSpanNode();
+    if (ch === '`') {
+      if (this.backtickRunCount) {
+        this.backtickRunCount++;
+        return { use: true };
       } else {
-        this.activateSkipMode(position.start.offset);
-        const skipBeginPoint = this.backtickStrBeginPoint;
-        this.resetBacktickStrState();
-        return { use: true, moveTo: skipBeginPoint, monopoly: false };
+        this.backtickRunCount = 1;
+        this.backtickRunBeginPoint = position.start;
+        return { use: true, monopoly: true };
       }
-    } else if (this.backtickStrCount > 0) {
-      this.beginBacktickCount = this.backtickStrCount;
-      this.beginBacktickPoint = this.backtickStrBeginPoint;
-      this.codeValuePoint = position.start;
-      this.codeActive = true;
-      this.resetBacktickStrState();
-      return { use: true };
-    } else if (this.codeActive) {
-      return { use: true };
+    }
+
+    // not a backtick char
+    if (this.backtickRunCount > 0) {
+      if (this.codeSpanActive) {
+        // the char number of the begin run is equal to that of the end run
+        if (this.backtickBeginRunCount === this.backtickRunCount) {
+          createCodeSpanNodeUsingContent(this.codeSpanContentCache);
+
+          this.codeSpanActive = false;
+          this.resetBacktickRunState();
+
+          return { monopoly: false };
+          // return createAndFillCodeSpanNode();
+        } else {
+          this.activateSkipMode(position.start.offset);
+          const skipBeginPoint = this.backtickRunBeginPoint;
+          this.resetBacktickRunState();
+          return { use: true, moveTo: skipBeginPoint, monopoly: false };
+        }
+      } else {
+        this.backtickBeginRunCount = this.backtickRunCount;
+        this.backtickBeginRunPoint = this.backtickRunBeginPoint;
+        this.codeValuePoint = position.start;
+        this.codeSpanActive = true;
+        this.resetBacktickRunState();
+        this.appendToContentCache(ch);
+        return { use: true };
+      }
     } else {
-      return;
+      if (this.codeSpanActive) {
+        this.appendToContentCache(ch);
+        return { use: true };
+      } else {
+        return;
+      }
     }
   }
 }

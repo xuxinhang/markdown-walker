@@ -91,6 +91,12 @@ export function moveAllChildren(fromNode: Node, toNode: Node) {
   }
 }
 
+export function removeAllChildren(node: Node) {
+  while (node.firstChild) {
+    node.removeChild(node.firstChild);
+  }
+}
+
 export function repeatChar(pattern: string, count: number) {
   // From https://stackoverflow.com/a/5450113
   if (count < 1) return '';

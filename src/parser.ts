@@ -28,14 +28,14 @@ export default function parseInline(src: string = '') {
   }
 
   const executors: BuildExecutor[] = [
-    { id: 'emphasis_pre', build: builds.emphasis, method: 'preFeed', precedence: 3 },
+    // { id: 'emphasis_pre', build: builds.emphasis, method: 'preFeed', precedence: 3 },
     { id: 'code_span', build: builds.code_span, method: 'feed', precedence: 9 },
-    { id: 'autolink', build: builds.autolink, method: 'feed', precedence: 9 }, // [TODO]
-    { id: 'link', build: builds.link, method: 'feed', precedence: 5 },
-    { id: 'emphasis', build: builds.emphasis, method: 'feed', precedence: 3 },
+    // { id: 'autolink', build: builds.autolink, method: 'feed', precedence: 9 },
+    // { id: 'link', build: builds.link, method: 'feed', precedence: 5 },
+    // { id: 'emphasis', build: builds.emphasis, method: 'feed', precedence: 3 },
     { id: 'strike', build: builds.strike, method: 'feed', precedence: 3 },
     { id: 'mark', build: builds.mark, method: 'feed', precedence: 3 },
-    { id: 'entity', build: builds.entity, method: 'feed', precedence: 1 },
+    // { id: 'entity', build: builds.entity, method: 'feed', precedence: 1 },
     { id: 'text', build: builds.text, method: 'feed', precedence: 0 },
   ];
   const rootMockedExecutor: BuildExecutor = { id: 'text', build: null, method: '_' };
@@ -49,7 +49,7 @@ export default function parseInline(src: string = '') {
   let tokenQueue: Token[] = [];
 
   // feed each char one by one
-  while (point.offset >= 0) {
+  while (true) {
     while (tokenQueue.length > 0) {
       const tk = tokenQueue.shift();
       feedChar2('', position, tk);
@@ -59,17 +59,17 @@ export default function parseInline(src: string = '') {
     if (ch) {
       feedChar2(ch, position, { type: TokenTypes.NextChar, payload: { char: ch } });
     } else {
-      // feed NULL character as end mark until all nodes are closed
-      const requestCloseToken: Token = {
-        type: TokenTypes.RequestClose,
-        payload: { precedence: 9999 },
-      };
       feedChar2('\0', position, { type: TokenTypes.NextChar, payload: { char: '\0' } });
-      if (tokenQueue.length === 0) {
+      const ch_temp = src.charAt(point.offset);
+      if (!ch_temp && tokenQueue.length === 0) {
+        const requestCloseToken: Token = {
+          type: TokenTypes.RequestClose,
+          payload: { precedence: 9999 },
+        };
         feedChar2('\0', position, requestCloseToken);
-      }
-      if (/* endFlag || */ (currentNode instanceof RootNode)) {
-        break;
+        if (/* endFlag || */ (currentNode instanceof RootNode)) {
+          break;
+        }
       }
     }
   }
@@ -297,3 +297,4 @@ export default function parseInline(src: string = '') {
     position = new Position(point, new Point(0, 0, point.offset + 1)); // [TODO]
   }
 }
+
